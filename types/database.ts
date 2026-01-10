@@ -15,6 +15,7 @@ export interface Database {
           username: string;
           display_name: string | null;
           avatar_url: string | null;
+          bodyweight_kg: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +24,7 @@ export interface Database {
           username: string;
           display_name?: string | null;
           avatar_url?: string | null;
+          bodyweight_kg?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +33,7 @@ export interface Database {
           username?: string;
           display_name?: string | null;
           avatar_url?: string | null;
+          bodyweight_kg?: number | null;
           updated_at?: string;
         };
       };

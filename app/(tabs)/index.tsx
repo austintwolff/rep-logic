@@ -1,18 +1,40 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useColorScheme } from '@/components/useColorScheme';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { getStreakMultiplier } from '@/lib/points-engine';
 
 export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { profile, userStats } = useAuthStore();
+  const { profile, userStats, refreshUserStats } = useAuthStore();
+
+  // Refresh user stats when screen loads
+  useEffect(() => {
+    refreshUserStats();
+  }, []);
 
   const handleStartWorkout = () => {
     router.push('/workout/new');
   };
+
+  const formatLastWorkout = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const streakMultiplier = getStreakMultiplier(userStats?.current_workout_streak || 0);
 
   return (
     <ScrollView
@@ -91,6 +113,21 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* Last Workout */}
+      {userStats?.last_workout_at && (
+        <View style={[styles.lastWorkoutCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <FontAwesome name="clock-o" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <View style={styles.lastWorkoutText}>
+            <Text style={[styles.lastWorkoutLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Last Workout
+            </Text>
+            <Text style={[styles.lastWorkoutValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+              {formatLastWorkout(userStats.last_workout_at as string)}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Streak Info */}
       {(userStats?.current_workout_streak ?? 0) > 0 && (
         <View style={[styles.streakCard, { backgroundColor: '#FEF3C7' }]}>
@@ -100,7 +137,9 @@ export default function HomeScreen() {
               {userStats?.current_workout_streak} Day Streak!
             </Text>
             <Text style={styles.streakDescription}>
-              Keep it up! Your streak multiplier is active.
+              {streakMultiplier > 1
+                ? `+${Math.round((streakMultiplier - 1) * 100)}% bonus on all points!`
+                : 'Keep it up! Streak bonuses start at 3 days.'}
             </Text>
           </View>
         </View>
@@ -224,6 +263,30 @@ const styles = StyleSheet.create({
   streakDescription: {
     fontSize: 14,
     color: '#B45309',
+    marginTop: 2,
+  },
+  lastWorkoutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lastWorkoutText: {
+    flex: 1,
+  },
+  lastWorkoutLabel: {
+    fontSize: 12,
+  },
+  lastWorkoutValue: {
+    fontSize: 16,
+    fontWeight: '600',
     marginTop: 2,
   },
 });

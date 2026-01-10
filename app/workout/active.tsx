@@ -14,6 +14,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { saveWorkoutToDatabase } from '@/services/workout.service';
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
 import ExercisePicker from '@/components/workout/ExercisePicker';
@@ -24,7 +25,7 @@ export default function ActiveWorkoutScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const { userStats } = useAuthStore();
+  const { user, profile, userStats, refreshUserStats } = useAuthStore();
   const {
     activeWorkout,
     currentExerciseIndex,
@@ -44,8 +45,9 @@ export default function ActiveWorkoutScreen() {
 
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const restTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Start workout on mount
   useEffect(() => {
@@ -103,9 +105,35 @@ export default function ActiveWorkoutScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Finish',
-          onPress: () => {
+          onPress: async () => {
+            if (!activeWorkout || !user) return;
+
+            setIsSaving(true);
+            const completedAt = new Date();
             const result = endWorkout();
+
             if (result) {
+              // Save to database
+              const saveResult = await saveWorkoutToDatabase({
+                userId: user.id,
+                workoutId: result.workout.id,
+                name: result.workout.name,
+                startedAt: result.workout.startedAt,
+                completedAt,
+                durationSeconds: elapsedTime,
+                exercises: result.workout.exercises,
+                totalVolume: result.workout.totalVolume,
+                totalPoints: result.workout.totalPoints,
+                completionBonus: result.completionBonus,
+              });
+
+              if (!saveResult.success) {
+                console.error('Failed to save workout:', saveResult.error);
+              }
+
+              // Refresh user stats
+              await refreshUserStats();
+
               router.replace({
                 pathname: '/workout/summary',
                 params: {
@@ -119,6 +147,7 @@ export default function ActiveWorkoutScreen() {
                 },
               });
             }
+            setIsSaving(false);
           },
         },
       ]
@@ -147,7 +176,7 @@ export default function ActiveWorkoutScreen() {
     return logSet({
       weight,
       reps,
-      userBodyweight: 80, // TODO: Get from user profile
+      userBodyweight: profile?.bodyweight_kg ?? 70,
       currentStreak: userStats?.current_workout_streak || 0,
     });
   };

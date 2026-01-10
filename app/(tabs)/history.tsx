@@ -1,40 +1,47 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useAuthStore } from '@/stores/auth.store';
+import { getWorkoutHistory } from '@/services/workout.service';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-// Placeholder data - will be replaced with real data from Supabase
-const PLACEHOLDER_WORKOUTS = [
-  {
-    id: '1',
-    name: 'Push Day',
-    date: '2024-01-08',
-    duration: 65,
-    totalSets: 18,
-    totalPoints: 432,
-  },
-  {
-    id: '2',
-    name: 'Pull Day',
-    date: '2024-01-06',
-    duration: 72,
-    totalSets: 20,
-    totalPoints: 521,
-  },
-  {
-    id: '3',
-    name: 'Leg Day',
-    date: '2024-01-04',
-    duration: 58,
-    totalSets: 15,
-    totalPoints: 389,
-  },
-];
+interface WorkoutItem {
+  id: string;
+  name: string;
+  started_at: string;
+  duration_seconds: number | null;
+  total_points: number;
+  workout_sets: { id: string }[];
+}
 
 export default function HistoryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { user } = useAuthStore();
+
+  const [workouts, setWorkouts] = useState<WorkoutItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadWorkouts();
+    }
+  }, [user]);
+
+  const loadWorkouts = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const history = await getWorkoutHistory(user.id);
+      setWorkouts(history);
+    } catch (error) {
+      console.error('Failed to load workout history:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -45,26 +52,27 @@ export default function HistoryScreen() {
     });
   };
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '0m';
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     if (hours > 0) {
       return `${hours}h ${mins}m`;
     }
     return `${mins}m`;
   };
 
-  const renderWorkout = ({ item }: { item: (typeof PLACEHOLDER_WORKOUTS)[0] }) => (
+  const renderWorkout = ({ item }: { item: WorkoutItem }) => (
     <TouchableOpacity
       style={[styles.workoutCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
-      onPress={() => router.push(`/workout/${item.id}`)}
+      onPress={() => router.push(`/workout/${item.id}` as any)}
     >
       <View style={styles.workoutHeader}>
         <Text style={[styles.workoutName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
           {item.name}
         </Text>
         <Text style={[styles.workoutDate, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          {formatDate(item.date)}
+          {formatDate(item.started_at)}
         </Text>
       </View>
 
@@ -72,19 +80,19 @@ export default function HistoryScreen() {
         <View style={styles.stat}>
           <FontAwesome name="clock-o" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
           <Text style={[styles.statText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {formatDuration(item.duration)}
+            {formatDuration(item.duration_seconds)}
           </Text>
         </View>
         <View style={styles.stat}>
           <FontAwesome name="list" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
           <Text style={[styles.statText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {item.totalSets} sets
+            {item.workout_sets?.length || 0} sets
           </Text>
         </View>
         <View style={styles.stat}>
           <FontAwesome name="star" size={14} color="#10B981" />
           <Text style={[styles.statText, { color: '#10B981' }]}>
-            {item.totalPoints} pts
+            {item.total_points} pts
           </Text>
         </View>
       </View>
@@ -103,14 +111,24 @@ export default function HistoryScreen() {
     </View>
   );
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+        <ActivityIndicator size="large" color="#10B981" />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
       <FlatList
-        data={[]}
+        data={workouts}
         renderItem={renderWorkout}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={renderEmpty}
+        onRefresh={loadWorkouts}
+        refreshing={isLoading}
       />
     </View>
   );
@@ -119,6 +137,10 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   list: {
     padding: 20,

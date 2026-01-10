@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   FlatList,
   Modal,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DEFAULT_EXERCISES, MUSCLE_GROUPS, ExerciseDefinition } from '@/constants/exercises';
 import { Exercise } from '@/types/database';
+import { fetchExercisesFromDatabase } from '@/services/workout.service';
 
 interface ExercisePickerProps {
   visible: boolean;
@@ -28,8 +30,45 @@ export default function ExercisePicker({
 }: ExercisePickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
+  const [databaseExercises, setDatabaseExercises] = useState<Exercise[]>([]);
+  const [isLoadingExercises, setIsLoadingExercises] = useState(false);
+  const [useDatabase, setUseDatabase] = useState(false);
+
+  // Fetch exercises from database when modal opens
+  useEffect(() => {
+    if (visible && !useDatabase && databaseExercises.length === 0) {
+      loadExercisesFromDatabase();
+    }
+  }, [visible]);
+
+  const loadExercisesFromDatabase = async () => {
+    setIsLoadingExercises(true);
+    try {
+      const exercises = await fetchExercisesFromDatabase();
+      if (exercises.length > 0) {
+        setDatabaseExercises(exercises);
+        setUseDatabase(true);
+      }
+    } catch (error) {
+      console.error('Failed to fetch exercises from database:', error);
+    } finally {
+      setIsLoadingExercises(false);
+    }
+  };
 
   const filteredExercises = useMemo(() => {
+    if (useDatabase && databaseExercises.length > 0) {
+      return databaseExercises.filter((exercise) => {
+        const matchesSearch = exercise.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const matchesMuscle =
+          !selectedMuscleGroup || exercise.muscle_group === selectedMuscleGroup;
+        return matchesSearch && matchesMuscle;
+      });
+    }
+
+    // Fallback to local exercises
     return DEFAULT_EXERCISES.filter((exercise) => {
       const matchesSearch = exercise.name
         .toLowerCase()
@@ -38,22 +77,29 @@ export default function ExercisePicker({
         !selectedMuscleGroup || exercise.muscleGroup === selectedMuscleGroup;
       return matchesSearch && matchesMuscle;
     });
-  }, [searchQuery, selectedMuscleGroup]);
+  }, [searchQuery, selectedMuscleGroup, useDatabase, databaseExercises]);
 
-  const handleSelectExercise = (exerciseDef: ExerciseDefinition) => {
-    // Convert ExerciseDefinition to Exercise type
-    const exercise: Exercise = {
-      id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: exerciseDef.name,
-      description: exerciseDef.description,
-      exercise_type: exerciseDef.exerciseType,
-      muscle_group: exerciseDef.muscleGroup,
-      equipment: exerciseDef.equipment,
-      is_compound: exerciseDef.isCompound,
-      created_by: null,
-      is_public: true,
-      created_at: new Date().toISOString(),
-    };
+  const handleSelectExercise = (exerciseOrDef: Exercise | ExerciseDefinition) => {
+    let exercise: Exercise;
+
+    if ('exercise_type' in exerciseOrDef) {
+      // Already an Exercise from database
+      exercise = exerciseOrDef;
+    } else {
+      // Convert ExerciseDefinition to Exercise type
+      exercise = {
+        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: exerciseOrDef.name,
+        description: exerciseOrDef.description,
+        exercise_type: exerciseOrDef.exerciseType,
+        muscle_group: exerciseOrDef.muscleGroup,
+        equipment: exerciseOrDef.equipment,
+        is_compound: exerciseOrDef.isCompound,
+        created_by: null,
+        is_public: true,
+        created_at: new Date().toISOString(),
+      };
+    }
 
     onSelectExercise(exercise);
     onClose();
@@ -61,27 +107,33 @@ export default function ExercisePicker({
     setSelectedMuscleGroup(null);
   };
 
-  const renderExercise = ({ item }: { item: ExerciseDefinition }) => (
-    <TouchableOpacity
-      style={[styles.exerciseItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
-      onPress={() => handleSelectExercise(item)}
-    >
-      <View style={styles.exerciseInfo}>
-        <Text style={[styles.exerciseName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-          {item.name}
-        </Text>
-        <View style={styles.exerciseMeta}>
-          <Text style={[styles.muscleGroup, { color: '#10B981' }]}>
-            {item.muscleGroup}
+  const renderExercise = ({ item }: { item: Exercise | ExerciseDefinition }) => {
+    const name = item.name;
+    const muscleGroup = 'muscle_group' in item ? item.muscle_group : item.muscleGroup;
+    const exerciseType = 'exercise_type' in item ? item.exercise_type : item.exerciseType;
+
+    return (
+      <TouchableOpacity
+        style={[styles.exerciseItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+        onPress={() => handleSelectExercise(item)}
+      >
+        <View style={styles.exerciseInfo}>
+          <Text style={[styles.exerciseName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            {name}
           </Text>
-          <Text style={[styles.exerciseType, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {item.exerciseType === 'bodyweight' ? 'Bodyweight' : 'Weighted'}
-          </Text>
+          <View style={styles.exerciseMeta}>
+            <Text style={[styles.muscleGroup, { color: '#10B981' }]}>
+              {muscleGroup}
+            </Text>
+            <Text style={[styles.exerciseType, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              {exerciseType === 'bodyweight' ? 'Bodyweight' : 'Weighted'}
+            </Text>
+          </View>
         </View>
-      </View>
-      <FontAwesome name="plus-circle" size={24} color="#10B981" />
-    </TouchableOpacity>
-  );
+        <FontAwesome name="plus-circle" size={24} color="#10B981" />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -156,21 +208,30 @@ export default function ExercisePicker({
         </View>
 
         {/* Exercise List */}
-        <FlatList
-          data={filteredExercises}
-          keyExtractor={(item) => item.name}
-          renderItem={renderExercise}
-          contentContainerStyle={styles.exerciseList}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <FontAwesome name="search" size={48} color={isDark ? '#374151' : '#D1D5DB'} />
-              <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                No exercises found
-              </Text>
-            </View>
-          }
-        />
+        {isLoadingExercises ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#10B981" />
+            <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Loading exercises...
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredExercises}
+            keyExtractor={(item) => 'id' in item && item.id ? item.id : item.name}
+            renderItem={renderExercise}
+            contentContainerStyle={styles.exerciseList}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <FontAwesome name="search" size={48} color={isDark ? '#374151' : '#D1D5DB'} />
+                <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  No exercises found
+                </Text>
+              </View>
+            }
+          />
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -279,6 +340,16 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyText: {
+    fontSize: 16,
+    marginTop: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
     fontSize: 16,
     marginTop: 16,
   },

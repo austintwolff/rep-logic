@@ -97,6 +97,20 @@ export function calculateOverloadBonus(
 }
 
 /**
+ * Get streak multiplier value
+ * Returns 1.0 if no streak bonus, otherwise the multiplier
+ */
+export function getStreakMultiplier(currentStreak: number): number {
+  if (currentStreak < 3) return 1.0;
+
+  if (currentStreak >= 28) return 1.5;
+  if (currentStreak >= 21) return 1.4;
+  if (currentStreak >= 14) return 1.3;
+  if (currentStreak >= 7) return 1.2;
+  return 1.1;
+}
+
+/**
  * Calculate workout streak bonus
  * Rewards consistent training
  */

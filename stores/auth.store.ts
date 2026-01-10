@@ -18,6 +18,8 @@ interface AuthState {
   signOut: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   fetchUserStats: () => Promise<void>;
+  refreshUserStats: () => Promise<void>;
+  updateBodyweight: (bodyweightKg: number) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -155,5 +157,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     set({ userStats: data });
+  },
+
+  refreshUserStats: async () => {
+    await get().fetchUserStats();
+  },
+
+  updateBodyweight: async (bodyweightKg: number) => {
+    const user = get().user;
+    if (!user) return;
+
+    const { error } = await (supabase
+      .from('profiles') as any)
+      .update({ bodyweight_kg: bodyweightKg })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Error updating bodyweight:', error);
+      throw error;
+    }
+
+    await get().fetchProfile();
   },
 }));
