@@ -6,9 +6,12 @@ export default function WorkoutLayout() {
       screenOptions={{
         headerShown: false,
         presentation: 'fullScreenModal',
+        gestureEnabled: false,
       }}
     >
-      <Stack.Screen name="new" />
+      <Stack.Screen name="new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="active" />
+      <Stack.Screen name="summary" />
       <Stack.Screen name="[sessionId]" />
     </Stack>
   );
