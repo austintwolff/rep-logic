@@ -69,21 +69,22 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const session = useAuthStore((state) => state.session);
-  const segments = useSegments();
-  const router = useRouter();
+  // AUTH DISABLED FOR TESTING - uncomment below to re-enable
+  // const session = useAuthStore((state) => state.session);
+  // const segments = useSegments();
+  // const router = useRouter();
 
-  useEffect(() => {
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (!session && !inAuthGroup) {
-      // Redirect to sign in if not authenticated
-      router.replace('/(auth)/sign-in');
-    } else if (session && inAuthGroup) {
-      // Redirect to home if authenticated and on auth screens
-      router.replace('/(tabs)');
-    }
-  }, [session, segments]);
+  // useEffect(() => {
+  //   const inAuthGroup = segments[0] === '(auth)';
+  //
+  //   if (!session && !inAuthGroup) {
+  //     // Redirect to sign in if not authenticated
+  //     router.replace('/(auth)/sign-in');
+  //   } else if (session && inAuthGroup) {
+  //     // Redirect to home if authenticated and on auth screens
+  //     router.replace('/(tabs)');
+  //   }
+  // }, [session, segments]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

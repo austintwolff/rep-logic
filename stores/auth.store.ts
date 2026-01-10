@@ -22,13 +22,38 @@ interface AuthState {
   updateBodyweight: (bodyweightKg: number) => Promise<void>;
 }
 
+// MOCK DATA FOR TESTING (auth disabled)
+const MOCK_PROFILE = {
+  id: 'test-user-123',
+  username: 'TestUser',
+  display_name: 'Test User',
+  avatar_url: null,
+  bodyweight_kg: 75,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+const MOCK_USER_STATS = {
+  user_id: 'test-user-123',
+  total_points: 1250,
+  weekly_points: 320,
+  current_workout_streak: 5,
+  longest_workout_streak: 12,
+  total_workouts: 24,
+  total_volume_kg: 45000,
+  current_overload_streak: 3,
+  last_workout_at: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+  updated_at: new Date().toISOString(),
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
-  profile: null,
-  userStats: null,
-  isLoading: true,
-  isInitialized: false,
+  // Use mock data when auth is disabled
+  profile: MOCK_PROFILE,
+  userStats: MOCK_USER_STATS,
+  isLoading: false,
+  isInitialized: true,
 
   initialize: async () => {
     try {
