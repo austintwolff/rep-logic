@@ -6,8 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:web": "expo export --platform web && cp dist/index.html dist/404.html",
+    "predeploy": "npm run build:web",
+    "deploy": "gh-pages -d dist"
   },
+  "homepage": "https://austintwolff.github.io/rep-logic",
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -38,6 +42,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "@types/uuid": "^10.0.0",
+    "gh-pages": "^6.3.0",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },
