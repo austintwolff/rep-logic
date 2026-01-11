@@ -1,15 +1,17 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { showAlert } from '@/lib/alert';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@/stores/auth.store';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useSettingsStore, kgToLbs, WeightUnit } from '@/stores/settings.store';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { profile, userStats, signOut } = useAuthStore();
+  const { weightUnit, setWeightUnit } = useSettingsStore();
 
   const handleSignOut = () => {
-    Alert.alert(
+    showAlert(
       'Sign Out',
       'Are you sure you want to sign out?',
       [
@@ -23,11 +25,16 @@ export default function ProfileScreen() {
     );
   };
 
+  const toggleWeightUnit = () => {
+    setWeightUnit(weightUnit === 'lbs' ? 'kg' : 'lbs');
+  };
+
   const formatVolume = (volumeKg: number) => {
-    if (volumeKg >= 1000) {
-      return `${(volumeKg / 1000).toFixed(1)}t`;
+    const volume = weightUnit === 'lbs' ? kgToLbs(volumeKg) : volumeKg;
+    if (volume >= 1000) {
+      return `${(volume / 1000).toFixed(1)}k ${weightUnit}`;
     }
-    return `${Math.round(volumeKg)}kg`;
+    return `${Math.round(volume)} ${weightUnit}`;
   };
 
   return (
@@ -82,7 +89,7 @@ export default function ProfileScreen() {
       <View style={[styles.streakSection, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
         <View style={styles.streakRow}>
           <View style={styles.streakItem}>
-            <FontAwesome name="fire" size={24} color="#F59E0B" />
+            <Text style={styles.streakIcon}>🔥</Text>
             <View style={styles.streakTextContainer}>
               <Text style={[styles.streakValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
                 {userStats?.current_workout_streak || 0}
@@ -94,7 +101,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.streakItem}>
-            <FontAwesome name="trophy" size={24} color="#10B981" />
+            <Text style={styles.trophyIcon}>🏆</Text>
             <View style={styles.streakTextContainer}>
               <Text style={[styles.streakValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
                 {userStats?.longest_workout_streak || 0}
@@ -116,37 +123,53 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={[styles.menuItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
         >
-          <FontAwesome name="user" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.menuIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>👤</Text>
           <Text style={[styles.menuText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             Edit Profile
           </Text>
-          <FontAwesome name="chevron-right" size={16} color={isDark ? '#4B5563' : '#9CA3AF'} />
+          <Text style={[styles.chevron, { color: isDark ? '#4B5563' : '#9CA3AF' }]}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.menuItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
         >
-          <FontAwesome name="bell" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.menuIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>🔔</Text>
           <Text style={[styles.menuText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             Notifications
           </Text>
-          <FontAwesome name="chevron-right" size={16} color={isDark ? '#4B5563' : '#9CA3AF'} />
+          <Text style={[styles.chevron, { color: isDark ? '#4B5563' : '#9CA3AF' }]}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.menuItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+          onPress={toggleWeightUnit}
         >
-          <FontAwesome name="cog" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.menuIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>⚖️</Text>
           <Text style={[styles.menuText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-            Preferences
+            Weight Unit
           </Text>
-          <FontAwesome name="chevron-right" size={16} color={isDark ? '#4B5563' : '#9CA3AF'} />
+          <View style={styles.unitToggle}>
+            <Text style={[
+              styles.unitOption,
+              weightUnit === 'lbs' && styles.unitOptionActive,
+              { color: weightUnit === 'lbs' ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') }
+            ]}>
+              lbs
+            </Text>
+            <Text style={[
+              styles.unitOption,
+              weightUnit === 'kg' && styles.unitOptionActive,
+              { color: weightUnit === 'kg' ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280') }
+            ]}>
+              kg
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
       {/* Sign Out */}
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <FontAwesome name="sign-out" size={20} color="#EF4444" />
+        <Text style={styles.signOutIcon}>↪</Text>
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
 
@@ -235,6 +258,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  streakIcon: {
+    fontSize: 24,
+  },
+  trophyIcon: {
+    fontSize: 24,
+  },
   streakTextContainer: {
     flex: 1,
   },
@@ -269,9 +298,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 12,
   },
+  menuIcon: {
+    fontSize: 20,
+  },
   menuText: {
     flex: 1,
     fontSize: 16,
+  },
+  chevron: {
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  unitToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  unitOption: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  unitOptionActive: {
+    backgroundColor: '#10B981',
   },
   signOutButton: {
     flexDirection: 'row',
@@ -282,6 +333,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     gap: 8,
     marginBottom: 24,
+  },
+  signOutIcon: {
+    fontSize: 20,
+    color: '#EF4444',
   },
   signOutText: {
     fontSize: 16,

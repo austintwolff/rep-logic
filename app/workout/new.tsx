@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 export default function NewWorkoutScreen() {
   const router = useRouter();
@@ -18,17 +17,15 @@ export default function NewWorkoutScreen() {
   const [workoutName, setWorkoutName] = useState('');
 
   const quickStartOptions = [
-    { name: 'Push Day', icon: 'arrow-up' as const },
-    { name: 'Pull Day', icon: 'arrow-down' as const },
-    { name: 'Leg Day', icon: 'bolt' as const },
-    { name: 'Upper Body', icon: 'child' as const },
-    { name: 'Lower Body', icon: 'arrows-v' as const },
-    { name: 'Full Body', icon: 'user' as const },
+    { name: 'Push Day', icon: '↑' },
+    { name: 'Pull Day', icon: '↓' },
+    { name: 'Leg Day', icon: '⚡' },
+    { name: 'Upper Body', icon: '💪' },
+    { name: 'Lower Body', icon: '🦵' },
+    { name: 'Full Body', icon: '🏋️' },
   ];
 
   const handleStartWorkout = (name: string) => {
-    // TODO: Create workout session in Supabase and navigate to active workout
-    // For now, just navigate with a placeholder ID
     router.push(`/workout/active?name=${encodeURIComponent(name)}`);
   };
 
@@ -41,7 +38,7 @@ export default function NewWorkoutScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-          <FontAwesome name="times" size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.closeIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>✕</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: isDark ? '#F9FAFB' : '#111827' }]}>
           New Workout
@@ -74,7 +71,7 @@ export default function NewWorkoutScreen() {
             onPress={() => handleStartWorkout(workoutName || 'Workout')}
             disabled={!workoutName}
           >
-            <FontAwesome name="play" size={16} color="#FFFFFF" />
+            <Text style={styles.playIcon}>▶</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -91,7 +88,7 @@ export default function NewWorkoutScreen() {
               style={[styles.optionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
               onPress={() => handleStartWorkout(option.name)}
             >
-              <FontAwesome name={option.icon} size={24} color="#10B981" />
+              <Text style={styles.optionIcon}>{option.icon}</Text>
               <Text style={[styles.optionText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
                 {option.name}
               </Text>
@@ -105,7 +102,7 @@ export default function NewWorkoutScreen() {
         style={[styles.emptyButton, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
         onPress={() => handleStartWorkout('Workout')}
       >
-        <FontAwesome name="plus" size={20} color="#10B981" />
+        <Text style={styles.plusIcon}>+</Text>
         <Text style={[styles.emptyButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
           Start Empty Workout
         </Text>
@@ -127,6 +124,10 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
+  },
+  closeIcon: {
+    fontSize: 24,
+    fontWeight: '300',
   },
   title: {
     fontSize: 20,
@@ -168,6 +169,10 @@ const styles = StyleSheet.create({
   startButtonDisabled: {
     opacity: 0.5,
   },
+  playIcon: {
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
   optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -185,6 +190,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  optionIcon: {
+    fontSize: 24,
   },
   optionText: {
     fontSize: 12,
@@ -204,6 +212,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  plusIcon: {
+    fontSize: 20,
+    color: '#10B981',
+    fontWeight: '600',
   },
   emptyButtonText: {
     fontSize: 16,

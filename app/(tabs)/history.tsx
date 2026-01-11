@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@/stores/auth.store';
 import { getWorkoutHistory } from '@/services/workout.service';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 interface WorkoutItem {
   id: string;
@@ -78,19 +77,19 @@ export default function HistoryScreen() {
 
       <View style={styles.workoutStats}>
         <View style={styles.stat}>
-          <FontAwesome name="clock-o" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.statIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>⏱</Text>
           <Text style={[styles.statText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
             {formatDuration(item.duration_seconds)}
           </Text>
         </View>
         <View style={styles.stat}>
-          <FontAwesome name="list" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.statIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>≡</Text>
           <Text style={[styles.statText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
             {item.workout_sets?.length || 0} sets
           </Text>
         </View>
         <View style={styles.stat}>
-          <FontAwesome name="star" size={14} color="#10B981" />
+          <Text style={[styles.statIconStar, { color: '#10B981' }]}>★</Text>
           <Text style={[styles.statText, { color: '#10B981' }]}>
             {item.total_points} pts
           </Text>
@@ -101,7 +100,7 @@ export default function HistoryScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <FontAwesome name="history" size={48} color={isDark ? '#374151' : '#D1D5DB'} />
+      <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>↺</Text>
       <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
         No workouts yet
       </Text>
@@ -178,6 +177,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  statIcon: {
+    fontSize: 14,
+  },
+  statIconStar: {
+    fontSize: 14,
+  },
   statText: {
     fontSize: 14,
   },
@@ -186,6 +191,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 48,
   },
   emptyTitle: {
     fontSize: 20,

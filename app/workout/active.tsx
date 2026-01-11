@@ -6,14 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  Alert,
   FlatList,
 } from 'react-native';
+import { showAlert } from '@/lib/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSettingsStore, formatWeight, kgToLbs } from '@/stores/settings.store';
 import { saveWorkoutToDatabase } from '@/services/workout.service';
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
@@ -26,6 +26,7 @@ export default function ActiveWorkoutScreen() {
   const isDark = colorScheme === 'dark';
 
   const { user, profile, userStats, refreshUserStats } = useAuthStore();
+  const { weightUnit } = useSettingsStore();
   const {
     activeWorkout,
     currentExerciseIndex,
@@ -98,7 +99,7 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleFinishWorkout = () => {
-    Alert.alert(
+    showAlert(
       'Finish Workout',
       'Are you sure you want to finish this workout?',
       [
@@ -155,7 +156,7 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleCancelWorkout = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Workout',
       'Are you sure you want to cancel? All progress will be lost.',
       [
@@ -207,7 +208,7 @@ export default function ActiveWorkoutScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleCancelWorkout} style={styles.headerButton}>
-          <FontAwesome name="times" size={20} color="#EF4444" />
+          <Text style={styles.cancelIcon}>✕</Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -220,7 +221,7 @@ export default function ActiveWorkoutScreen() {
         </View>
 
         <TouchableOpacity onPress={handleFinishWorkout} style={styles.headerButton}>
-          <FontAwesome name="check" size={20} color="#10B981" />
+          <Text style={styles.checkIcon}>✓</Text>
         </TouchableOpacity>
       </View>
 
@@ -317,7 +318,7 @@ export default function ActiveWorkoutScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() => {
-                  Alert.alert(
+                  showAlert(
                     'Remove Exercise',
                     `Remove ${currentExercise.exercise.name}?`,
                     [
@@ -331,7 +332,7 @@ export default function ActiveWorkoutScreen() {
                   );
                 }}
               >
-                <FontAwesome name="trash-o" size={20} color="#EF4444" />
+                <Text style={styles.trashIcon}>🗑</Text>
               </TouchableOpacity>
             </View>
 
@@ -352,10 +353,10 @@ export default function ActiveWorkoutScreen() {
                     <Text style={[styles.setDetails, { color: isDark ? '#F9FAFB' : '#111827' }]}>
                       {set.isBodyweight
                         ? `${set.reps} reps`
-                        : `${set.weight}kg × ${set.reps}`}
+                        : `${formatWeight(set.weight, weightUnit)}${weightUnit} × ${set.reps}`}
                     </Text>
                     <View style={styles.setPoints}>
-                      <FontAwesome name="star" size={12} color="#10B981" />
+                      <Text style={styles.starIcon}>★</Text>
                       <Text style={styles.setPointsText}>{set.pointsEarned}</Text>
                     </View>
                   </View>
@@ -385,7 +386,7 @@ export default function ActiveWorkoutScreen() {
           </>
         ) : (
           <View style={styles.emptyState}>
-            <FontAwesome name="plus-circle" size={64} color={isDark ? '#374151' : '#D1D5DB'} />
+            <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>⊕</Text>
             <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
               No exercises yet
             </Text>
@@ -401,7 +402,7 @@ export default function ActiveWorkoutScreen() {
         style={styles.addExerciseButton}
         onPress={() => setShowExercisePicker(true)}
       >
-        <FontAwesome name="plus" size={20} color="#FFFFFF" />
+        <Text style={styles.addIcon}>+</Text>
         <Text style={styles.addExerciseText}>Add Exercise</Text>
       </TouchableOpacity>
 
@@ -431,6 +432,16 @@ const styles = StyleSheet.create({
     padding: 8,
     width: 44,
     alignItems: 'center',
+  },
+  cancelIcon: {
+    fontSize: 20,
+    color: '#EF4444',
+    fontWeight: '300',
+  },
+  checkIcon: {
+    fontSize: 20,
+    color: '#10B981',
+    fontWeight: '700',
   },
   headerCenter: {
     alignItems: 'center',
@@ -515,6 +526,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
+  trashIcon: {
+    fontSize: 20,
+  },
   completedSets: {
     paddingHorizontal: 20,
     marginBottom: 16,
@@ -548,6 +562,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  starIcon: {
+    fontSize: 12,
+    color: '#10B981',
+  },
   setPointsText: {
     fontSize: 14,
     fontWeight: '600',
@@ -557,6 +575,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 60,
     paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    fontSize: 64,
   },
   emptyTitle: {
     fontSize: 20,
@@ -585,6 +606,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  addIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   addExerciseText: {
     color: '#FFFFFF',

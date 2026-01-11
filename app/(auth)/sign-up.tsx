@@ -7,10 +7,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { showAlert } from '@/lib/alert';
 import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -24,34 +24,34 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     if (!email || !username || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showAlert('Error', 'Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showAlert('Error', 'Password must be at least 6 characters');
       return;
     }
 
     if (username.length < 3) {
-      Alert.alert('Error', 'Username must be at least 3 characters');
+      showAlert('Error', 'Username must be at least 3 characters');
       return;
     }
 
     try {
       await signUp(email, password, username);
-      Alert.alert(
+      showAlert(
         'Success',
         'Account created! Please check your email to verify your account.',
         [{ text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create account');
+      showAlert('Error', error.message || 'Failed to create account');
     }
   };
 

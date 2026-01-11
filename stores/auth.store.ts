@@ -49,11 +49,10 @@ const MOCK_USER_STATS = {
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
-  // Use mock data when auth is disabled
-  profile: MOCK_PROFILE,
-  userStats: MOCK_USER_STATS,
-  isLoading: false,
-  isInitialized: true,
+  profile: null,
+  userStats: null,
+  isLoading: true,
+  isInitialized: false,
 
   initialize: async () => {
     try {

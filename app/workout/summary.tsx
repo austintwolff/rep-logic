@@ -1,15 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withDelay,
-  withSequence,
   withTiming,
-  runOnJS,
 } from 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 
@@ -80,7 +76,7 @@ export default function WorkoutSummaryScreen() {
         {/* Success Icon */}
         <Animated.View style={[styles.iconContainer, animatedStyle]}>
           <View style={styles.iconCircle}>
-            <FontAwesome name="check" size={48} color="#FFFFFF" />
+            <Text style={styles.checkIcon}>✓</Text>
           </View>
         </Animated.View>
 
@@ -103,7 +99,7 @@ export default function WorkoutSummaryScreen() {
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <FontAwesome name="clock-o" size={24} color="#6366F1" />
+            <Text style={styles.statIconClock}>⏱</Text>
             <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
               {formatDuration(duration)}
             </Text>
@@ -113,7 +109,7 @@ export default function WorkoutSummaryScreen() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <FontAwesome name="list" size={24} color="#F59E0B" />
+            <Text style={styles.statIconList}>≡</Text>
             <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
               {totalSets}
             </Text>
@@ -123,7 +119,7 @@ export default function WorkoutSummaryScreen() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <FontAwesome name="heartbeat" size={24} color="#EF4444" />
+            <Text style={styles.statIconHeart}>💪</Text>
             <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
               {exerciseCount}
             </Text>
@@ -135,7 +131,7 @@ export default function WorkoutSummaryScreen() {
 
         {/* Motivational Message */}
         <View style={[styles.messageCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <FontAwesome name="fire" size={20} color="#F59E0B" />
+          <Text style={styles.fireIcon}>🔥</Text>
           <Text style={[styles.messageText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             Great work! Keep the momentum going!
           </Text>
@@ -175,6 +171,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
+  },
+  checkIcon: {
+    fontSize: 48,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   title: {
     fontSize: 28,
@@ -219,6 +220,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  statIconClock: {
+    fontSize: 24,
+    color: '#6366F1',
+  },
+  statIconList: {
+    fontSize: 24,
+    color: '#F59E0B',
+  },
+  statIconHeart: {
+    fontSize: 24,
+  },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
@@ -233,6 +245,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     width: '100%',
+  },
+  fireIcon: {
+    fontSize: 20,
   },
   messageText: {
     flex: 1,

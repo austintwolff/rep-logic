@@ -10,7 +10,6 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DEFAULT_EXERCISES, MUSCLE_GROUPS, ExerciseDefinition } from '@/constants/exercises';
 import { Exercise } from '@/types/database';
 import { fetchExercisesFromDatabase } from '@/services/workout.service';
@@ -130,7 +129,7 @@ export default function ExercisePicker({
             </Text>
           </View>
         </View>
-        <FontAwesome name="plus-circle" size={24} color="#10B981" />
+        <Text style={styles.addIcon}>⊕</Text>
       </TouchableOpacity>
     );
   };
@@ -141,7 +140,7 @@ export default function ExercisePicker({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <FontAwesome name="times" size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            <Text style={[styles.closeIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>✕</Text>
           </TouchableOpacity>
           <Text style={[styles.title, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             Add Exercise
@@ -151,12 +150,7 @@ export default function ExercisePicker({
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <FontAwesome
-            name="search"
-            size={16}
-            color={isDark ? '#6B7280' : '#9CA3AF'}
-            style={styles.searchIcon}
-          />
+          <Text style={[styles.searchIcon, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>🔍</Text>
           <TextInput
             style={[
               styles.searchInput,
@@ -224,7 +218,7 @@ export default function ExercisePicker({
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <FontAwesome name="search" size={48} color={isDark ? '#374151' : '#D1D5DB'} />
+                <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>🔍</Text>
                 <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
                   No exercises found
                 </Text>
@@ -253,6 +247,10 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
   },
+  closeIcon: {
+    fontSize: 24,
+    fontWeight: '300',
+  },
   title: {
     fontSize: 18,
     fontWeight: '700',
@@ -270,12 +268,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 36,
     zIndex: 1,
+    fontSize: 16,
   },
   searchInput: {
     flex: 1,
     height: 44,
     borderRadius: 12,
-    paddingLeft: 40,
+    paddingLeft: 44,
     paddingRight: 16,
     fontSize: 16,
   },
@@ -332,12 +331,19 @@ const styles = StyleSheet.create({
   exerciseType: {
     fontSize: 13,
   },
+  addIcon: {
+    fontSize: 24,
+    color: '#10B981',
+  },
   separator: {
     height: 8,
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 48,
   },
   emptyText: {
     fontSize: 16,

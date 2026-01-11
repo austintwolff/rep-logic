@@ -1,4 +1,3 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
@@ -34,7 +33,6 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    ...FontAwesome.font,
   });
 
   const initialize = useAuthStore((state) => state.initialize);
@@ -69,22 +67,21 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  // AUTH DISABLED FOR TESTING - uncomment below to re-enable
-  // const session = useAuthStore((state) => state.session);
-  // const segments = useSegments();
-  // const router = useRouter();
+  const session = useAuthStore((state) => state.session);
+  const segments = useSegments();
+  const router = useRouter();
 
-  // useEffect(() => {
-  //   const inAuthGroup = segments[0] === '(auth)';
-  //
-  //   if (!session && !inAuthGroup) {
-  //     // Redirect to sign in if not authenticated
-  //     router.replace('/(auth)/sign-in');
-  //   } else if (session && inAuthGroup) {
-  //     // Redirect to home if authenticated and on auth screens
-  //     router.replace('/(tabs)');
-  //   }
-  // }, [session, segments]);
+  useEffect(() => {
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!session && !inAuthGroup) {
+      // Redirect to sign in if not authenticated
+      router.replace('/(auth)/sign-in');
+    } else if (session && inAuthGroup) {
+      // Redirect to home if authenticated and on auth screens
+      router.replace('/(tabs)');
+    }
+  }, [session, segments]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

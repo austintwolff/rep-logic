@@ -1,14 +1,14 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Text, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  icon: string;
   color: string;
 }) {
-  return <FontAwesome size={24} style={{ marginBottom: -3 }} {...props} />;
+  return <Text style={[styles.tabIcon, { color: props.color }]}>{props.icon}</Text>;
 }
 
 export default function TabLayout() {
@@ -39,23 +39,30 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon icon="🏠" color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color }) => <TabBarIcon name="history" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon icon="📋" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon icon="👤" color={color} />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIcon: {
+    fontSize: 24,
+    marginBottom: -3,
+  },
+});

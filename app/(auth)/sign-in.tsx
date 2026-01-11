@@ -7,9 +7,9 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '@/lib/alert';
 import { Link } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -20,14 +20,14 @@ export default function SignInScreen() {
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
     try {
       await signIn(email, password);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to sign in');
+      showAlert('Error', error.message || 'Failed to sign in');
     }
   };
 

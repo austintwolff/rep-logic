@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } fr
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useColorScheme } from '@/components/useColorScheme';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { getStreakMultiplier } from '@/lib/points-engine';
 
 export default function HomeScreen() {
@@ -55,7 +54,7 @@ export default function HomeScreen() {
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
           <View style={styles.statIconContainer}>
-            <FontAwesome name="star" size={20} color="#10B981" />
+            <Text style={styles.statIcon}>★</Text>
           </View>
           <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             {userStats?.total_points?.toLocaleString() || 0}
@@ -67,7 +66,7 @@ export default function HomeScreen() {
 
         <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
           <View style={styles.statIconContainer}>
-            <FontAwesome name="fire" size={20} color="#F59E0B" />
+            <Text style={styles.statIconFire}>🔥</Text>
           </View>
           <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             {userStats?.current_workout_streak || 0}
@@ -79,7 +78,7 @@ export default function HomeScreen() {
 
         <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
           <View style={styles.statIconContainer}>
-            <FontAwesome name="calendar-check-o" size={20} color="#6366F1" />
+            <Text style={styles.statIconCalendar}>📅</Text>
           </View>
           <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             {userStats?.total_workouts || 0}
@@ -92,7 +91,7 @@ export default function HomeScreen() {
 
       {/* Start Workout Button */}
       <TouchableOpacity style={styles.startButton} onPress={handleStartWorkout}>
-        <FontAwesome name="plus" size={24} color="#FFFFFF" style={styles.startButtonIcon} />
+        <Text style={styles.startButtonIcon}>+</Text>
         <Text style={styles.startButtonText}>Start Workout</Text>
       </TouchableOpacity>
 
@@ -116,7 +115,7 @@ export default function HomeScreen() {
       {/* Last Workout */}
       {userStats?.last_workout_at && (
         <View style={[styles.lastWorkoutCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <FontAwesome name="clock-o" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <Text style={[styles.lastWorkoutIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>⏱</Text>
           <View style={styles.lastWorkoutText}>
             <Text style={[styles.lastWorkoutLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               Last Workout
@@ -131,7 +130,7 @@ export default function HomeScreen() {
       {/* Streak Info */}
       {(userStats?.current_workout_streak ?? 0) > 0 && (
         <View style={[styles.streakCard, { backgroundColor: '#FEF3C7' }]}>
-          <FontAwesome name="fire" size={24} color="#F59E0B" />
+          <Text style={styles.streakIcon}>🔥</Text>
           <View style={styles.streakText}>
             <Text style={styles.streakTitle}>
               {userStats?.current_workout_streak} Day Streak!
@@ -186,6 +185,16 @@ const styles = StyleSheet.create({
   statIconContainer: {
     marginBottom: 8,
   },
+  statIcon: {
+    fontSize: 20,
+    color: '#10B981',
+  },
+  statIconFire: {
+    fontSize: 20,
+  },
+  statIconCalendar: {
+    fontSize: 20,
+  },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
@@ -209,6 +218,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   startButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
     marginRight: 12,
   },
   startButtonText: {
@@ -252,6 +264,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 12,
   },
+  streakIcon: {
+    fontSize: 24,
+  },
   streakText: {
     flex: 1,
   },
@@ -277,6 +292,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  lastWorkoutIcon: {
+    fontSize: 20,
   },
   lastWorkoutText: {
     flex: 1,

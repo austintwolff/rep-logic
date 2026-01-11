@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web && sed -i '' 's|href=\"/favicon.ico\"|href=\"/rep-logic/favicon.ico\"|g' dist/index.html && sed -i '' 's|src=\"/_expo|src=\"/rep-logic/_expo|g' dist/index.html && cp dist/index.html dist/404.html && touch dist/.nojekyll",
+    "build:web": "expo export --platform web && sed -i '' 's|href=\"/favicon.ico\"|href=\"/rep-logic/favicon.ico\"|g' dist/index.html && sed -i '' 's|src=\"/_expo|src=\"/rep-logic/_expo|g' dist/index.html && sed -i '' 's|<script src=|<script type=\"module\" src=|g' dist/index.html && cp dist/index.html dist/404.html && touch dist/.nojekyll",
     "predeploy": "npm run build:web",
     "deploy": "gh-pages -d dist"
   },

@@ -286,6 +286,27 @@ export async function getPreviousBest(
   return bestSet;
 }
 
+export async function getWorkoutDetail(workoutId: string): Promise<any | null> {
+  const { data, error } = await supabase
+    .from('workout_sessions')
+    .select(`
+      *,
+      workout_sets (
+        *,
+        exercise:exercises (id, name, muscle_group, exercise_type)
+      )
+    `)
+    .eq('id', workoutId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching workout detail:', error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function fetchExercisesFromDatabase(): Promise<any[]> {
   const { data, error } = await supabase
     .from('exercises')
@@ -299,4 +320,70 @@ export async function fetchExercisesFromDatabase(): Promise<any[]> {
   }
 
   return data || [];
+}
+
+export async function deleteWorkout(workoutId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // First get the workout to verify ownership and get stats to subtract
+    const { data: workout, error: fetchError } = await supabase
+      .from('workout_sessions')
+      .select('*')
+      .eq('id', workoutId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !workout) {
+      return { success: false, error: 'Workout not found' };
+    }
+
+    // Delete point transactions for this workout
+    await supabase
+      .from('point_transactions')
+      .delete()
+      .eq('workout_session_id', workoutId);
+
+    // Delete workout sets
+    await supabase
+      .from('workout_sets')
+      .delete()
+      .eq('workout_session_id', workoutId);
+
+    // Delete the workout session
+    const { error: deleteError } = await supabase
+      .from('workout_sessions')
+      .delete()
+      .eq('id', workoutId);
+
+    if (deleteError) {
+      console.error('Error deleting workout:', deleteError);
+      return { success: false, error: deleteError.message };
+    }
+
+    // Update user stats to subtract the deleted workout's contributions
+    const { data: currentStats } = await supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (currentStats) {
+      const statsUpdate: UserStatsUpdate = {
+        total_points: Math.max(0, (currentStats.total_points || 0) - (workout.total_points || 0)),
+        total_workouts: Math.max(0, (currentStats.total_workouts || 0) - 1),
+        total_volume_kg: Math.max(0, (currentStats.total_volume_kg || 0) - (workout.total_volume_kg || 0)),
+      };
+
+      await (supabase.from('user_stats') as any)
+        .update(statsUpdate)
+        .eq('user_id', userId);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting workout:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }

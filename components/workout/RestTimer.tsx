@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 interface RestTimerProps {
   timeRemaining: number;
@@ -80,10 +79,10 @@ export default function RestTimer({
 
 const styles = StyleSheet.create({
   container: {
-    margin: 20,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -94,48 +93,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   title: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   skipButton: {
-    padding: 8,
+    padding: 4,
   },
   skipText: {
     color: '#10B981',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   timerContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   time: {
-    fontSize: 56,
+    fontSize: 36,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   adjustButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 10,
   },
   adjustButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   adjustText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   progressTrack: {
-    height: 4,
+    height: 3,
     borderRadius: 2,
     overflow: 'hidden',
   },

@@ -7,8 +7,8 @@ import {
   TextInput,
   Animated,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { PointsResult } from '@/lib/points-engine';
+import { useSettingsStore, formatWeight, parseWeightInput, getWeightIncrement, kgToLbs } from '@/stores/settings.store';
 
 interface SetLoggerProps {
   exerciseName: string;
@@ -31,7 +31,17 @@ export default function SetLogger({
   onStartRest,
   isDark,
 }: SetLoggerProps) {
-  const [weight, setWeight] = useState(previousWeight?.toString() || '');
+  const { weightUnit } = useSettingsStore();
+  const weightIncrement = getWeightIncrement(weightUnit);
+
+  // Convert previous weight from kg (stored) to display unit
+  const previousWeightDisplay = previousWeight !== undefined
+    ? (weightUnit === 'lbs' ? kgToLbs(previousWeight) : previousWeight)
+    : undefined;
+
+  const [weight, setWeight] = useState(
+    previousWeightDisplay !== undefined ? Math.round(previousWeightDisplay).toString() : ''
+  );
   const [reps, setReps] = useState('');
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
   const [lastPoints, setLastPoints] = useState<PointsResult | null>(null);
@@ -39,12 +49,23 @@ export default function SetLogger({
   const pointsScale = useState(new Animated.Value(0.5))[0];
 
   const isBodyweight = exerciseType === 'bodyweight';
+  const hasPreviousSet = previousReps !== undefined && (isBodyweight || previousWeight !== undefined);
+
+  const handleRepeatLastSet = () => {
+    if (previousReps !== undefined) {
+      setReps(previousReps.toString());
+    }
+    if (!isBodyweight && previousWeightDisplay !== undefined) {
+      setWeight(Math.round(previousWeightDisplay).toString());
+    }
+  };
 
   const handleLogSet = () => {
     const repsNum = parseInt(reps, 10);
     if (isNaN(repsNum) || repsNum <= 0) return;
 
-    const weightNum = isBodyweight ? null : parseFloat(weight) || 0;
+    // Convert from display unit to kg for storage
+    const weightNum = isBodyweight ? null : parseWeightInput(weight, weightUnit);
     const result = onLogSet(weightNum, repsNum);
 
     if (result) {
@@ -91,7 +112,7 @@ export default function SetLogger({
   const adjustWeight = (delta: number) => {
     const current = parseFloat(weight) || 0;
     const newWeight = Math.max(0, current + delta);
-    setWeight(newWeight.toString());
+    setWeight(Math.round(newWeight).toString());
   };
 
   const adjustReps = (delta: number) => {
@@ -102,14 +123,21 @@ export default function SetLogger({
 
   return (
     <View style={styles.container}>
-      {/* Previous Performance */}
-      {(previousWeight || previousReps) && (
-        <View style={[styles.previousContainer, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
-          <FontAwesome name="history" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+      {/* Previous Performance + Repeat Button */}
+      {hasPreviousSet && (
+        <TouchableOpacity
+          style={[styles.previousContainer, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
+          onPress={handleRepeatLastSet}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>↺</Text>
           <Text style={[styles.previousText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Last time: {previousWeight ? `${previousWeight}kg x ` : ''}{previousReps} reps
+            Last: {!isBodyweight && previousWeightDisplay ? `${Math.round(previousWeightDisplay)}${weightUnit} × ` : ''}{previousReps} reps
           </Text>
-        </View>
+          <View style={styles.repeatBadge}>
+            <Text style={styles.repeatBadgeText}>Tap to repeat</Text>
+          </View>
+        </TouchableOpacity>
       )}
 
       {/* Set Number */}
@@ -123,14 +151,14 @@ export default function SetLogger({
         {!isBodyweight && (
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              Weight (kg)
+              Weight ({weightUnit})
             </Text>
             <View style={styles.inputWithButtons}>
               <TouchableOpacity
                 style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
-                onPress={() => adjustWeight(-2.5)}
+                onPress={() => adjustWeight(-weightIncrement)}
               >
-                <FontAwesome name="minus" size={16} color={isDark ? '#F9FAFB' : '#111827'} />
+                <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>−</Text>
               </TouchableOpacity>
               <TextInput
                 style={[
@@ -149,9 +177,9 @@ export default function SetLogger({
               />
               <TouchableOpacity
                 style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
-                onPress={() => adjustWeight(2.5)}
+                onPress={() => adjustWeight(weightIncrement)}
               >
-                <FontAwesome name="plus" size={16} color={isDark ? '#F9FAFB' : '#111827'} />
+                <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -167,7 +195,7 @@ export default function SetLogger({
               style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
               onPress={() => adjustReps(-1)}
             >
-              <FontAwesome name="minus" size={16} color={isDark ? '#F9FAFB' : '#111827'} />
+              <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>−</Text>
             </TouchableOpacity>
             <TextInput
               style={[
@@ -188,7 +216,7 @@ export default function SetLogger({
               style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
               onPress={() => adjustReps(1)}
             >
-              <FontAwesome name="plus" size={16} color={isDark ? '#F9FAFB' : '#111827'} />
+              <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -225,7 +253,7 @@ export default function SetLogger({
         onPress={handleLogSet}
         disabled={!reps}
       >
-        <FontAwesome name="check" size={20} color="#FFFFFF" />
+        <Text style={styles.logButtonIcon}>✓</Text>
         <Text style={styles.logButtonText}>Log Set</Text>
       </TouchableOpacity>
 
@@ -266,11 +294,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
   },
   previousText: {
     fontSize: 14,
+    flex: 1,
+  },
+  repeatBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  repeatBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   setLabel: {
     fontSize: 14,
@@ -281,11 +321,12 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     marginBottom: 16,
   },
   inputGroup: {
     flex: 1,
+    minWidth: 0,
   },
   inputGroupFull: {
     flex: 1,
@@ -298,34 +339,39 @@ const styles = StyleSheet.create({
   inputWithButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   adjustButton: {
-    width: 44,
-    height: 56,
-    borderRadius: 12,
+    width: 36,
+    height: 48,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  adjustButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
   numberInput: {
     flex: 1,
-    height: 56,
-    borderRadius: 12,
+    height: 48,
+    minWidth: 50,
+    borderRadius: 10,
     borderWidth: 2,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
   quickRepsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
+    gap: 6,
   },
   quickRepButton: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 16,
     borderRadius: 8,
-    minWidth: 50,
     alignItems: 'center',
   },
   quickRepButtonActive: {
@@ -349,6 +395,11 @@ const styles = StyleSheet.create({
   },
   logButtonDisabled: {
     opacity: 0.5,
+  },
+  logButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
   },
   logButtonText: {
     color: '#FFFFFF',
