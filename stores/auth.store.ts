@@ -114,6 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (email: string, password: string) => {
     set({ isLoading: true });
+    console.log('[Auth] Signing in...');
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -121,9 +122,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     if (error) {
+      console.error('[Auth] Sign in error:', error);
       set({ isLoading: false });
       throw error;
     }
+
+    console.log('[Auth] Sign in successful, user:', data.session?.user?.id);
 
     // Set session directly from response (don't wait for onAuthStateChange)
     set({
@@ -134,8 +138,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Fetch profile and stats
     if (data.session?.user) {
+      console.log('[Auth] Fetching profile and stats...');
       await get().fetchProfile();
       await get().fetchUserStats();
+      console.log('[Auth] Done fetching profile and stats');
     }
   },
 
@@ -160,8 +166,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   fetchProfile: async () => {
     const user = get().user;
-    if (!user) return;
+    if (!user) {
+      console.log('[Auth] fetchProfile: No user');
+      return;
+    }
 
+    console.log('[Auth] Fetching profile for user:', user.id);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -169,17 +179,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) {
-      console.error('Error fetching profile:', error);
+      console.error('[Auth] Error fetching profile:', error);
+      // If profile doesn't exist, try to create it from user metadata
+      if (error.code === 'PGRST116') {
+        console.log('[Auth] Profile not found, creating from user metadata');
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
+            display_name: user.user_metadata?.display_name || user.user_metadata?.username || 'Athlete',
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('[Auth] Error creating profile:', createError);
+          return;
+        }
+        console.log('[Auth] Created profile:', newProfile);
+        set({ profile: newProfile });
+      }
       return;
     }
 
+    console.log('[Auth] Fetched profile:', data);
     set({ profile: data });
   },
 
   fetchUserStats: async () => {
     const user = get().user;
-    if (!user) return;
+    if (!user) {
+      console.log('[Auth] fetchUserStats: No user');
+      return;
+    }
 
+    console.log('[Auth] Fetching user stats for user:', user.id);
     const { data, error } = await supabase
       .from('user_stats')
       .select('*')
@@ -187,10 +222,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) {
-      console.error('Error fetching user stats:', error);
+      console.error('[Auth] Error fetching user stats:', error);
+      // If user stats don't exist, create them
+      if (error.code === 'PGRST116') {
+        console.log('[Auth] User stats not found, creating');
+        const { data: newStats, error: createError } = await supabase
+          .from('user_stats')
+          .insert({
+            user_id: user.id,
+            total_points: 0,
+            weekly_points: 0,
+            current_workout_streak: 0,
+            longest_workout_streak: 0,
+            total_workouts: 0,
+            total_volume_kg: 0,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('[Auth] Error creating user stats:', createError);
+          return;
+        }
+        console.log('[Auth] Created user stats:', newStats);
+        set({ userStats: newStats });
+      }
       return;
     }
 
+    console.log('[Auth] Fetched user stats:', data);
     set({ userStats: data });
   },
 
