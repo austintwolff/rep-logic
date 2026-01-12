@@ -2,240 +2,446 @@ import {
   SetPointsInput,
   PointBonus,
   PointsResult,
-  UserPointsContext,
+  ExerciseBaselineData,
   WorkoutCompletionInput,
-  PreviousBest,
+  WorkoutCompletionResult,
+  MusclePointsBreakdown,
+  POINTS_CONFIG,
 } from './types';
 
+// ============================================================================
+// CORE CALCULATIONS
+// ============================================================================
+
 /**
- * Calculate the estimated one-rep max using the Epley formula
+ * Calculate estimated one-rep max using Epley formula
  */
 export function calculateOneRepMax(weight: number, reps: number): number {
-  if (reps === 1) return weight;
   if (reps === 0 || weight === 0) return 0;
+  if (reps === 1) return weight;
   return weight * (1 + reps / 30);
 }
 
 /**
- * Calculate difficulty factor based on rep range
- * Higher reps = slightly diminishing returns per rep
+ * Get rep range multiplier based on rep count
+ * 5-8 reps (hypertrophy sweet spot) gets 1.25x
  */
-function calculateRepDifficultyFactor(reps: number): number {
-  if (reps <= 5) return 1.0;
-  if (reps <= 10) return 0.95;
-  if (reps <= 15) return 0.85;
-  return 0.75;
+export function getRepRangeMultiplier(reps: number): number {
+  const { REP_MULTIPLIERS } = POINTS_CONFIG;
+
+  if (reps >= REP_MULTIPLIERS.HYPERTROPHY.min && reps <= REP_MULTIPLIERS.HYPERTROPHY.max) {
+    return REP_MULTIPLIERS.HYPERTROPHY.multiplier;
+  }
+  if (reps >= REP_MULTIPLIERS.STRENGTH.min && reps <= REP_MULTIPLIERS.STRENGTH.max) {
+    return REP_MULTIPLIERS.STRENGTH.multiplier;
+  }
+  if (reps >= REP_MULTIPLIERS.HYPERTROPHY_ENDURANCE.min && reps <= REP_MULTIPLIERS.HYPERTROPHY_ENDURANCE.max) {
+    return REP_MULTIPLIERS.HYPERTROPHY_ENDURANCE.multiplier;
+  }
+  if (reps >= REP_MULTIPLIERS.ENDURANCE.min && reps <= REP_MULTIPLIERS.ENDURANCE.max) {
+    return REP_MULTIPLIERS.ENDURANCE.multiplier;
+  }
+  return REP_MULTIPLIERS.HIGH_REP.multiplier;
+}
+
+/**
+ * Get volume scaling multiplier based on set number for a muscle group
+ * Sets 1-6: 100%, Sets 7-10: 75%, Sets 11+: 50%
+ */
+export function getVolumeScalingMultiplier(setsForMuscle: number): number {
+  const { VOLUME_SCALING } = POINTS_CONFIG;
+
+  if (setsForMuscle <= VOLUME_SCALING.FULL_VALUE_SETS) {
+    return 1.0;
+  }
+  if (setsForMuscle <= VOLUME_SCALING.REDUCED_VALUE_SETS) {
+    return VOLUME_SCALING.REDUCED_MULTIPLIER;
+  }
+  return VOLUME_SCALING.MINIMAL_MULTIPLIER;
 }
 
 /**
  * Calculate base points for a set
- * Formula: (weight_kg / 10) * reps * difficulty_factor
+ * Formula: weight × reps (simple volume)
  */
 export function calculateBasePoints(input: SetPointsInput): number {
   const { exerciseType, weight, reps, userBodyweight } = input;
 
   let effectiveWeight: number;
-
   if (exerciseType === 'weighted') {
     effectiveWeight = weight ?? 0;
   } else {
-    // Bodyweight exercises: use ~65% of bodyweight as effective resistance
-    effectiveWeight = userBodyweight * 0.65;
+    // For bodyweight exercises, use 60% of bodyweight as effective weight
+    effectiveWeight = userBodyweight * POINTS_CONFIG.BODYWEIGHT_FACTOR;
   }
 
-  const difficultyFactor = calculateRepDifficultyFactor(reps);
+  // Base points = volume (weight × reps)
+  const basePoints = effectiveWeight * reps;
+  console.log('[PointsEngine] calculateBasePoints:', { exerciseType, weight, reps, effectiveWeight, basePoints });
 
-  // Base formula: (weight in kg / 10) * reps * difficulty
-  // Example: 100kg squat x 8 reps = (100/10) * 8 * 0.95 = 76 points
-  const basePoints = Math.floor((effectiveWeight / 10) * reps * difficultyFactor);
-
-  return Math.max(basePoints, 1); // Minimum 1 point per set
+  return Math.max(Math.round(basePoints), 1);
 }
 
+// ============================================================================
+// PROGRESSIVE OVERLOAD
+// ============================================================================
+
 /**
- * Calculate progressive overload bonus
- * Compares current set to previous best performance
+ * Calculate progressive overload bonus based on rolling average comparison
  */
 export function calculateOverloadBonus(
-  input: SetPointsInput
-): PointBonus | null {
-  if (!input.previousBest) return null;
+  currentE1rm: number,
+  baseline: ExerciseBaselineData | null
+): { bonus: PointBonus | null; improvementPercent: number; tier: 'none' | 'small' | 'moderate' | 'major' } {
+  if (!baseline || !baseline.isBaselined || baseline.rollingAvgE1rm === 0) {
+    return { bonus: null, improvementPercent: 0, tier: 'none' };
+  }
 
-  const currentOneRepMax = calculateOneRepMax(input.weight ?? 0, input.reps);
-  const previousOneRepMax = input.previousBest.oneRepMax;
+  const improvementPercent = ((currentE1rm - baseline.rollingAvgE1rm) / baseline.rollingAvgE1rm) * 100;
 
-  if (previousOneRepMax === 0) return null;
+  if (improvementPercent < POINTS_CONFIG.OVERLOAD_TIERS.SMALL.minPercent) {
+    return { bonus: null, improvementPercent, tier: 'none' };
+  }
 
-  // Calculate improvement percentage
-  const improvement =
-    ((currentOneRepMax - previousOneRepMax) / previousOneRepMax) * 100;
+  const { OVERLOAD_TIERS } = POINTS_CONFIG;
 
-  if (improvement <= 0) return null;
+  if (improvementPercent >= OVERLOAD_TIERS.MAJOR.minPercent) {
+    return {
+      bonus: {
+        type: 'progressive_overload',
+        multiplier: OVERLOAD_TIERS.MAJOR.bonus, // Just the bonus portion (e.g., 1.0 for +100%)
+        description: `Major PR! +${OVERLOAD_TIERS.MAJOR.bonus * 100}%`,
+      },
+      improvementPercent,
+      tier: 'major',
+    };
+  }
 
-  // Tiered multiplier based on improvement
-  let multiplier: number;
-  let description: string;
-
-  if (improvement >= 5) {
-    multiplier = 1.5;
-    description = 'Major PR! +50% bonus';
-  } else if (improvement >= 2.5) {
-    multiplier = 1.25;
-    description = 'Nice progress! +25% bonus';
-  } else if (improvement > 0) {
-    multiplier = 1.1;
-    description = 'Improvement! +10% bonus';
-  } else {
-    return null;
+  if (improvementPercent >= OVERLOAD_TIERS.MODERATE.minPercent) {
+    return {
+      bonus: {
+        type: 'progressive_overload',
+        multiplier: OVERLOAD_TIERS.MODERATE.bonus, // Just the bonus portion (e.g., 0.5 for +50%)
+        description: `Great progress! +${OVERLOAD_TIERS.MODERATE.bonus * 100}%`,
+      },
+      improvementPercent,
+      tier: 'moderate',
+    };
   }
 
   return {
-    type: 'progressive_overload',
-    multiplier,
-    description,
+    bonus: {
+      type: 'progressive_overload',
+      multiplier: OVERLOAD_TIERS.SMALL.bonus, // Just the bonus portion (e.g., 0.25 for +25%)
+      description: `Improvement! +${OVERLOAD_TIERS.SMALL.bonus * 100}%`,
+    },
+    improvementPercent,
+    tier: 'small',
   };
 }
 
+// ============================================================================
+// STREAK BONUSES
+// ============================================================================
+
 /**
- * Get streak multiplier value
- * Returns 1.0 if no streak bonus, otherwise the multiplier
+ * Get workout streak multiplier
  */
 export function getStreakMultiplier(currentStreak: number): number {
-  if (currentStreak < 3) return 1.0;
-
-  if (currentStreak >= 28) return 1.5;
-  if (currentStreak >= 21) return 1.4;
-  if (currentStreak >= 14) return 1.3;
-  if (currentStreak >= 7) return 1.2;
-  return 1.1;
+  for (const tier of POINTS_CONFIG.STREAK_TIERS) {
+    if (currentStreak >= tier.minStreak) {
+      return tier.multiplier;
+    }
+  }
+  return 1.0;
 }
 
 /**
  * Calculate workout streak bonus
- * Rewards consistent training
  */
 export function calculateStreakBonus(currentStreak: number): PointBonus | null {
-  if (currentStreak < 2) return null;
+  const multiplier = getStreakMultiplier(currentStreak);
+  if (multiplier === 1.0) return null;
 
-  // Streak tiers (applied to entire workout)
-  // 2-6 workouts: 1.1x
-  // 7-13 workouts: 1.2x
-  // 14-20 workouts: 1.3x
-  // 21-27 workouts: 1.4x
-  // 28+ workouts: 1.5x (cap)
-
-  let multiplier: number;
-
-  if (currentStreak >= 28) {
-    multiplier = 1.5;
-  } else if (currentStreak >= 21) {
-    multiplier = 1.4;
-  } else if (currentStreak >= 14) {
-    multiplier = 1.3;
-  } else if (currentStreak >= 7) {
-    multiplier = 1.2;
-  } else {
-    multiplier = 1.1;
-  }
-
+  const bonusPortion = multiplier - 1; // Convert 1.1 to 0.1 (10% bonus)
   return {
     type: 'workout_streak',
-    multiplier,
-    description: `${currentStreak} workout streak! x${multiplier}`,
+    multiplier: bonusPortion,
+    description: `${currentStreak} workout streak! +${Math.round(bonusPortion * 100)}%`,
   };
 }
 
+// ============================================================================
+// MUSCLE LEVELS
+// ============================================================================
+
 /**
- * Calculate total points for a completed set
+ * Calculate XP required for a specific level
+ */
+export function xpForLevel(level: number): number {
+  const { BASE_XP, GROWTH_RATE } = POINTS_CONFIG.LEVELS;
+  return Math.floor(BASE_XP * Math.pow(GROWTH_RATE, level));
+}
+
+/**
+ * Calculate total XP required to reach a level from 0
+ */
+export function totalXpForLevel(level: number): number {
+  let total = 0;
+  for (let i = 0; i < level; i++) {
+    total += xpForLevel(i);
+  }
+  return total;
+}
+
+/**
+ * Calculate level and remaining XP from total XP
+ */
+export function calculateLevelFromXp(totalXp: number): { level: number; currentXp: number; xpForNext: number } {
+  let level = 0;
+  let remainingXp = totalXp;
+
+  while (level < POINTS_CONFIG.LEVELS.MAX_LEVEL) {
+    const required = xpForLevel(level);
+    if (remainingXp < required) {
+      return { level, currentXp: remainingXp, xpForNext: required };
+    }
+    remainingXp -= required;
+    level++;
+  }
+
+  return { level: POINTS_CONFIG.LEVELS.MAX_LEVEL, currentXp: remainingXp, xpForNext: 0 };
+}
+
+/**
+ * Calculate decay amount based on weeks since last training
+ */
+export function calculateDecay(weeksSinceTraining: number, currentXp: number): number {
+  if (weeksSinceTraining < 1) return 0;
+
+  const { DECAY } = POINTS_CONFIG;
+  let decayRate: number;
+
+  if (weeksSinceTraining === 1) {
+    decayRate = DECAY.WEEK_1;
+  } else if (weeksSinceTraining === 2) {
+    decayRate = DECAY.WEEK_2;
+  } else {
+    decayRate = DECAY.WEEK_3_PLUS;
+  }
+
+  return Math.floor(currentXp * decayRate);
+}
+
+// ============================================================================
+// MAIN CALCULATION
+// ============================================================================
+
+/**
+ * Calculate total points for a completed set with all bonuses
  */
 export function calculateSetPoints(
   input: SetPointsInput,
-  userContext: UserPointsContext
+  baseline: ExerciseBaselineData | null,
+  currentStreak: number = 0
 ): PointsResult {
-  const basePoints = calculateBasePoints(input);
   const bonuses: PointBonus[] = [];
 
-  // Check for progressive overload bonus
-  const overloadBonus = calculateOverloadBonus(input);
-  if (overloadBonus) bonuses.push(overloadBonus);
+  // Calculate base points
+  const basePoints = calculateBasePoints(input);
 
-  // Check for streak bonus
-  const streakBonus = calculateStreakBonus(userContext.currentStreak);
-  if (streakBonus) bonuses.push(streakBonus);
+  // Calculate current e1RM
+  const effectiveWeight = input.exerciseType === 'weighted'
+    ? (input.weight ?? 0)
+    : input.userBodyweight * POINTS_CONFIG.BODYWEIGHT_FACTOR;
+  const currentE1rm = calculateOneRepMax(effectiveWeight, input.reps);
 
-  // Combine multipliers (multiplicative, not additive)
-  const combinedMultiplier = bonuses.reduce(
-    (acc, bonus) => acc * bonus.multiplier,
-    1.0
-  );
+  // Progressive overload bonus
+  const overloadResult = calculateOverloadBonus(currentE1rm, baseline);
+  if (overloadResult.bonus) {
+    bonuses.push(overloadResult.bonus);
+  }
 
-  const finalPoints = Math.floor(basePoints * combinedMultiplier);
+  // Rep range bonus - hypertrophy range (5-8 reps) gets bonus
+  const repMultiplier = getRepRangeMultiplier(input.reps);
+  if (repMultiplier !== 1.0) {
+    const bonusPercent = Math.round((repMultiplier - 1) * 100);
+    bonuses.push({
+      type: 'hypertrophy_rep_range',
+      multiplier: repMultiplier - 1, // The bonus portion (e.g., 0.25 for 25%)
+      description: bonusPercent > 0
+        ? `Hypertrophy range (${input.reps} reps)`
+        : `High rep endurance (${input.reps} reps)`,
+    });
+  }
+
+  // Volume scaling (diminishing returns)
+  const volumeMultiplier = getVolumeScalingMultiplier(input.setsForMuscleInWorkout);
+  if (volumeMultiplier < 1.0) {
+    bonuses.push({
+      type: 'volume_scaling',
+      multiplier: volumeMultiplier,
+      description: `Set ${input.setsForMuscleInWorkout} for ${input.primaryMuscle} (${volumeMultiplier * 100}%)`,
+    });
+  }
+
+  // Workout streak bonus
+  const streakBonus = calculateStreakBonus(currentStreak);
+  if (streakBonus) {
+    bonuses.push(streakBonus);
+  }
+
+  // Combine all multipliers
+  // Bonuses are additive (e.g., +25% hypertrophy + 10% streak = ×1.35)
+  let totalBonusMultiplier = 0;
+  let volumeScaling = 1.0;
+
+  for (const bonus of bonuses) {
+    if (bonus.type === 'volume_scaling') {
+      // Volume scaling is multiplicative (reduces points for high set counts)
+      volumeScaling = bonus.multiplier;
+    } else {
+      // Other bonuses are additive
+      totalBonusMultiplier += bonus.multiplier;
+    }
+  }
+
+  const combinedMultiplier = (1 + totalBonusMultiplier) * volumeScaling;
+
+  const finalPoints = Math.max(Math.floor(basePoints * combinedMultiplier), 1);
+
+  // Create muscle breakdown (for compound exercises, points go to all muscles)
+  const muscleBreakdown: MusclePointsBreakdown[] = [{
+    muscleGroup: input.primaryMuscle,
+    basePoints,
+    finalPoints,
+    xpGained: finalPoints,
+  }];
 
   return {
     basePoints,
     multiplier: combinedMultiplier,
     finalPoints,
     bonuses,
+    muscleBreakdown,
+    progressiveOverload: {
+      isImprovement: overloadResult.tier !== 'none',
+      improvementPercent: overloadResult.improvementPercent,
+      tier: overloadResult.tier,
+    },
+    baselineStatus: {
+      isBaselined: baseline?.isBaselined ?? false,
+      workoutsCompleted: baseline?.workoutCount ?? 0,
+      workoutsRequired: POINTS_CONFIG.BASELINE.WORKOUTS_REQUIRED,
+    },
   };
 }
+
+// ============================================================================
+// WORKOUT COMPLETION
+// ============================================================================
 
 /**
  * Calculate bonus points for completing a workout
  */
-export function calculateWorkoutCompletionBonus(
-  input: WorkoutCompletionInput
-): number {
-  let bonus = 0;
+export function calculateWorkoutCompletionBonus(input: WorkoutCompletionInput): WorkoutCompletionResult {
+  let baseCompletion = 50;
+  let durationBonus = 0;
+  let volumeBonus = 0;
 
-  // Base completion bonus
-  bonus += 50;
-
-  // Duration bonus (prevent gaming with super short workouts)
-  if (input.durationMinutes >= 30) {
-    bonus += 25;
-  }
+  // Duration bonus
   if (input.durationMinutes >= 60) {
-    bonus += 25;
+    durationBonus = 50;
+  } else if (input.durationMinutes >= 30) {
+    durationBonus = 25;
   }
 
-  // Set count bonus (encourage volume)
-  if (input.totalSets >= 10) {
-    bonus += 25;
-  }
+  // Volume bonus
   if (input.totalSets >= 20) {
-    bonus += 25;
+    volumeBonus = 50;
+  } else if (input.totalSets >= 10) {
+    volumeBonus = 25;
   }
 
-  return bonus;
+  return {
+    bonusPoints: baseCompletion + durationBonus + volumeBonus,
+    breakdown: {
+      baseCompletion,
+      durationBonus,
+      volumeBonus,
+    },
+  };
 }
+
+// ============================================================================
+// BASELINE UTILITIES
+// ============================================================================
+
+/**
+ * Update rolling average with new session data
+ */
+export function updateRollingAverage(
+  sessionHistory: { e1rm: number; date: string; weight: number; reps: number }[],
+  newSession: { e1rm: number; date: string; weight: number; reps: number }
+): { newHistory: typeof sessionHistory; newAverage: number } {
+  const maxSessions = POINTS_CONFIG.BASELINE.ROLLING_WINDOW;
+
+  // Add new session and trim to window size
+  const newHistory = [...sessionHistory, newSession].slice(-maxSessions);
+
+  // Calculate new average
+  const sum = newHistory.reduce((acc, s) => acc + s.e1rm, 0);
+  const newAverage = newHistory.length > 0 ? sum / newHistory.length : 0;
+
+  return { newHistory, newAverage };
+}
+
+// ============================================================================
+// STREAK UTILITIES
+// ============================================================================
 
 /**
  * Determine if a workout should extend the streak
- * A streak is maintained if the user works out at least every 3 days
  */
 export function shouldExtendStreak(lastWorkoutAt: Date | null): boolean {
-  if (!lastWorkoutAt) return true; // First workout starts a streak
+  if (!lastWorkoutAt) return true;
 
   const now = new Date();
-  const daysSinceLastWorkout = Math.floor(
-    (now.getTime() - lastWorkoutAt.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  // Streak continues if workout within 3 days
-  return daysSinceLastWorkout <= 3;
+  const daysSince = Math.floor((now.getTime() - lastWorkoutAt.getTime()) / (1000 * 60 * 60 * 24));
+  return daysSince <= 3;
 }
 
 /**
- * Calculate the new streak value
+ * Calculate new streak value
  */
-export function calculateNewStreak(
-  currentStreak: number,
-  lastWorkoutAt: Date | null
-): number {
+export function calculateNewStreak(currentStreak: number, lastWorkoutAt: Date | null): number {
   if (shouldExtendStreak(lastWorkoutAt)) {
     return currentStreak + 1;
   }
-  return 1; // Reset to 1 (this workout starts a new streak)
+  return 1;
+}
+
+// ============================================================================
+// WEEK UTILITIES
+// ============================================================================
+
+/**
+ * Get Monday of the current week
+ */
+export function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Format date as YYYY-MM-DD
+ */
+export function formatDateAsISO(date: Date): string {
+  return date.toISOString().split('T')[0];
 }
 
 export * from './types';

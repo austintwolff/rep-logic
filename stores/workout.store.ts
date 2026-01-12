@@ -4,8 +4,9 @@ import { Exercise } from '@/types/database';
 import {
   calculateSetPoints,
   calculateWorkoutCompletionBonus,
-  calculateNewStreak,
   PointsResult,
+  ExerciseBaselineData,
+  POINTS_CONFIG,
 } from '@/lib/points-engine';
 
 export interface WorkoutSet {
@@ -19,6 +20,7 @@ export interface WorkoutSet {
   isBodyweight: boolean;
   pointsEarned: number;
   completedAt: Date;
+  muscleGroups: string[]; // All muscles this set worked
 }
 
 export interface WorkoutExercise {
@@ -34,6 +36,7 @@ interface ActiveWorkout {
   exercises: WorkoutExercise[];
   totalPoints: number;
   totalVolume: number;
+  muscleSetsCount: Map<string, number>; // Track sets per muscle group
 }
 
 interface WorkoutState {
@@ -42,6 +45,7 @@ interface WorkoutState {
   isRestTimerActive: boolean;
   restTimeRemaining: number;
   lastPointsResult: PointsResult | null;
+  exerciseBaselines: Map<string, ExerciseBaselineData>; // Loaded baselines
 
   // Actions
   startWorkout: (name: string) => void;
@@ -52,13 +56,15 @@ interface WorkoutState {
   removeExercise: (exerciseId: string) => void;
   setCurrentExercise: (index: number) => void;
 
+  setExerciseBaselines: (baselines: Map<string, ExerciseBaselineData>) => void;
+
   logSet: (params: {
     weight: number | null;
     reps: number;
     setType?: 'warmup' | 'working' | 'dropset' | 'failure';
     userBodyweight: number;
     currentStreak: number;
-    previousBest?: { weight: number; reps: number; oneRepMax: number } | null;
+    muscleGroups?: string[]; // For compound exercises
   }) => PointsResult | null;
 
   startRestTimer: (seconds: number) => void;
@@ -73,6 +79,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   isRestTimerActive: false,
   restTimeRemaining: 0,
   lastPointsResult: null,
+  exerciseBaselines: new Map(),
 
   startWorkout: (name: string) => {
     set({
@@ -83,6 +90,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         exercises: [],
         totalPoints: 0,
         totalVolume: 0,
+        muscleSetsCount: new Map(),
       },
       currentExerciseIndex: 0,
       isRestTimerActive: false,
@@ -104,14 +112,15 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       0
     );
 
-    const completionBonus = calculateWorkoutCompletionBonus({
+    const completionResult = calculateWorkoutCompletionBonus({
       totalSets,
       durationMinutes,
+      exerciseCount: activeWorkout.exercises.length,
     });
 
     const finalWorkout = {
       ...activeWorkout,
-      totalPoints: activeWorkout.totalPoints + completionBonus,
+      totalPoints: activeWorkout.totalPoints + completionResult.bonusPoints,
     };
 
     set({
@@ -122,7 +131,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       lastPointsResult: null,
     });
 
-    return { workout: finalWorkout, completionBonus };
+    return { workout: finalWorkout, completionBonus: completionResult.bonusPoints };
   },
 
   cancelWorkout: () => {
@@ -178,8 +187,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({ currentExerciseIndex: index });
   },
 
+  setExerciseBaselines: (baselines: Map<string, ExerciseBaselineData>) => {
+    set({ exerciseBaselines: baselines });
+  },
+
   logSet: (params) => {
-    const { activeWorkout, currentExerciseIndex } = get();
+    console.log('[WorkoutStore] logSet called with:', { weight: params.weight, reps: params.reps });
+    const { activeWorkout, currentExerciseIndex, exerciseBaselines } = get();
     if (!activeWorkout || activeWorkout.exercises.length === 0) return null;
 
     const currentExercise = activeWorkout.exercises[currentExerciseIndex];
@@ -187,21 +201,35 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
     const exercise = currentExercise.exercise;
     const isBodyweight = exercise.exercise_type === 'bodyweight';
+    const primaryMuscle = exercise.muscle_group;
+
+    // Determine all muscle groups this set works
+    const muscleGroups = params.muscleGroups?.length
+      ? params.muscleGroups
+      : [primaryMuscle];
+
+    // Get current set count for primary muscle (for volume scaling)
+    const currentMuscleSets = activeWorkout.muscleSetsCount.get(primaryMuscle) || 0;
+
+    // Get baseline for this exercise
+    const baseline = exerciseBaselines.get(exercise.id) || null;
 
     // Calculate points
     const pointsResult = calculateSetPoints(
       {
         exerciseId: exercise.id,
+        exerciseName: exercise.name,
         exerciseType: exercise.exercise_type as 'weighted' | 'bodyweight',
+        isCompound: exercise.is_compound,
+        primaryMuscle,
         weight: params.weight,
         reps: params.reps,
+        setNumberInWorkout: currentExercise.sets.length + 1,
+        setsForMuscleInWorkout: currentMuscleSets + 1,
         userBodyweight: params.userBodyweight,
-        previousBest: params.previousBest || null,
       },
-      {
-        currentStreak: params.currentStreak,
-        bodyweight: params.userBodyweight,
-      }
+      baseline,
+      params.currentStreak
     );
 
     const newSet: WorkoutSet = {
@@ -215,11 +243,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       isBodyweight,
       pointsEarned: pointsResult.finalPoints,
       completedAt: new Date(),
+      muscleGroups,
     };
 
     // Calculate volume
     const setVolume = isBodyweight
-      ? params.userBodyweight * 0.65 * params.reps
+      ? params.userBodyweight * POINTS_CONFIG.BODYWEIGHT_FACTOR * params.reps
       : (params.weight || 0) * params.reps;
 
     const updatedExercises = activeWorkout.exercises.map((ex, index) => {
@@ -232,12 +261,19 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       return ex;
     });
 
+    // Update muscle set counts for all muscles worked
+    const newMuscleSetsCount = new Map(activeWorkout.muscleSetsCount);
+    for (const muscle of muscleGroups) {
+      newMuscleSetsCount.set(muscle, (newMuscleSetsCount.get(muscle) || 0) + 1);
+    }
+
     set({
       activeWorkout: {
         ...activeWorkout,
         exercises: updatedExercises,
         totalPoints: activeWorkout.totalPoints + pointsResult.finalPoints,
         totalVolume: activeWorkout.totalVolume + setVolume,
+        muscleSetsCount: newMuscleSetsCount,
       },
       lastPointsResult: pointsResult,
     });

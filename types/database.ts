@@ -6,6 +6,14 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+// Baseline session history entry
+export interface BaselineSessionEntry {
+  e1rm: number;
+  date: string;
+  weight: number;
+  reps: number;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -208,6 +216,124 @@ export interface Database {
         };
         Update: never;
       };
+      exercise_baselines: {
+        Row: {
+          id: string;
+          user_id: string;
+          exercise_id: string;
+          rolling_avg_e1rm: number;
+          session_history: BaselineSessionEntry[];
+          workout_count: number;
+          is_baselined: boolean;
+          best_e1rm: number;
+          best_e1rm_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          exercise_id: string;
+          rolling_avg_e1rm?: number;
+          session_history?: BaselineSessionEntry[];
+          workout_count?: number;
+          is_baselined?: boolean;
+          best_e1rm?: number;
+          best_e1rm_date?: string | null;
+        };
+        Update: {
+          rolling_avg_e1rm?: number;
+          session_history?: BaselineSessionEntry[];
+          workout_count?: number;
+          is_baselined?: boolean;
+          best_e1rm?: number;
+          best_e1rm_date?: string | null;
+          updated_at?: string;
+        };
+      };
+      muscle_levels: {
+        Row: {
+          id: string;
+          user_id: string;
+          muscle_group: string;
+          current_level: number;
+          current_xp: number;
+          total_xp_earned: number;
+          last_trained_at: string | null;
+          decay_applied_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          muscle_group: string;
+          current_level?: number;
+          current_xp?: number;
+          total_xp_earned?: number;
+          last_trained_at?: string | null;
+        };
+        Update: {
+          current_level?: number;
+          current_xp?: number;
+          total_xp_earned?: number;
+          last_trained_at?: string | null;
+          decay_applied_at?: string | null;
+          updated_at?: string;
+        };
+      };
+      weekly_muscle_stats: {
+        Row: {
+          id: string;
+          user_id: string;
+          muscle_group: string;
+          week_start: string;
+          workout_count: number;
+          total_sets: number;
+          total_points: number;
+          consistency_bonus_applied: boolean;
+          bonus_percentage: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          muscle_group: string;
+          week_start: string;
+          workout_count?: number;
+          total_sets?: number;
+          total_points?: number;
+        };
+        Update: {
+          workout_count?: number;
+          total_sets?: number;
+          total_points?: number;
+          consistency_bonus_applied?: boolean;
+          bonus_percentage?: number;
+          updated_at?: string;
+        };
+      };
+      exercise_muscle_map: {
+        Row: {
+          id: string;
+          exercise_name: string;
+          muscle_group: string;
+          contribution_percentage: number;
+          is_primary: boolean;
+        };
+        Insert: {
+          id?: string;
+          exercise_name: string;
+          muscle_group: string;
+          contribution_percentage?: number;
+          is_primary?: boolean;
+        };
+        Update: {
+          contribution_percentage?: number;
+          is_primary?: boolean;
+        };
+      };
     };
     Views: {};
     Functions: {};
@@ -222,3 +348,7 @@ export type Exercise = Database['public']['Tables']['exercises']['Row'];
 export type WorkoutSession = Database['public']['Tables']['workout_sessions']['Row'];
 export type WorkoutSet = Database['public']['Tables']['workout_sets']['Row'];
 export type PointTransaction = Database['public']['Tables']['point_transactions']['Row'];
+export type ExerciseBaseline = Database['public']['Tables']['exercise_baselines']['Row'];
+export type MuscleLevel = Database['public']['Tables']['muscle_levels']['Row'];
+export type WeeklyMuscleStats = Database['public']['Tables']['weekly_muscle_stats']['Row'];
+export type ExerciseMuscleMap = Database['public']['Tables']['exercise_muscle_map']['Row'];

@@ -13,11 +13,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { useSettingsStore, formatWeight, kgToLbs } from '@/stores/settings.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { saveWorkoutToDatabase } from '@/services/workout.service';
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
 import ExercisePicker from '@/components/workout/ExercisePicker';
+import PointsAnimation from '@/components/workout/PointsAnimation';
+import { PointsResult } from '@/lib/points-engine/types';
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
@@ -47,6 +49,9 @@ export default function ActiveWorkoutScreen() {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPointsAnimation, setShowPointsAnimation] = useState(false);
+  const [lastPointsResult, setLastPointsResult] = useState<PointsResult | null>(null);
+  const [lastSetInfo, setLastSetInfo] = useState<{ weight: number | null; reps: number; isBodyweight: boolean; weightUnit: 'kg' | 'lbs' }>({ weight: null, reps: 0, isBodyweight: false, weightUnit: 'kg' });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -126,6 +131,7 @@ export default function ActiveWorkoutScreen() {
                 totalVolume: result.workout.totalVolume,
                 totalPoints: result.workout.totalPoints,
                 completionBonus: result.completionBonus,
+                weightUnit, // Pass unit for conversion to kg when saving
               });
 
               if (!saveResult.success) {
@@ -174,12 +180,29 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleLogSet = (weight: number | null, reps: number) => {
-    return logSet({
+    const currentEx = activeWorkout?.exercises[currentExerciseIndex];
+    const isBodyweight = currentEx?.exercise.exercise_type === 'bodyweight';
+
+    const result = logSet({
       weight,
       reps,
       userBodyweight: profile?.bodyweight_kg ?? 70,
       currentStreak: userStats?.current_workout_streak || 0,
     });
+
+    // Trigger points animation
+    if (result) {
+      setLastSetInfo({ weight, reps, isBodyweight, weightUnit });
+      setLastPointsResult(result);
+      setShowPointsAnimation(true);
+    }
+
+    return result;
+  };
+
+  const handlePointsAnimationComplete = () => {
+    setShowPointsAnimation(false);
+    setLastPointsResult(null);
   };
 
   const handleAdjustRestTime = (seconds: number) => {
@@ -225,33 +248,27 @@ export default function ActiveWorkoutScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Stats Bar */}
+      {/* Stats Bar - Compact */}
       <View style={[styles.statsBar, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
         <View style={styles.stat}>
           <Text style={[styles.statValue, { color: '#10B981' }]}>
             {activeWorkout.totalPoints}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Points
-          </Text>
+          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>pts</Text>
         </View>
-        <View style={styles.statDivider} />
+        <Text style={[styles.statDivider, { color: isDark ? '#374151' : '#D1D5DB' }]}>|</Text>
         <View style={styles.stat}>
           <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             {totalSets}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Sets
-          </Text>
+          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>sets</Text>
         </View>
-        <View style={styles.statDivider} />
+        <Text style={[styles.statDivider, { color: isDark ? '#374151' : '#D1D5DB' }]}>|</Text>
         <View style={styles.stat}>
           <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             {activeWorkout.exercises.length}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Exercises
-          </Text>
+          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>ex</Text>
         </View>
       </View>
 
@@ -353,7 +370,7 @@ export default function ActiveWorkoutScreen() {
                     <Text style={[styles.setDetails, { color: isDark ? '#F9FAFB' : '#111827' }]}>
                       {set.isBodyweight
                         ? `${set.reps} reps`
-                        : `${formatWeight(set.weight, weightUnit)}${weightUnit} × ${set.reps}`}
+                        : `${set.weight}${weightUnit} × ${set.reps}`}
                     </Text>
                     <View style={styles.setPoints}>
                       <Text style={styles.starIcon}>★</Text>
@@ -413,6 +430,14 @@ export default function ActiveWorkoutScreen() {
         onSelectExercise={addExercise}
         isDark={isDark}
       />
+
+      {/* Points Animation */}
+      <PointsAnimation
+        visible={showPointsAnimation}
+        pointsResult={lastPointsResult}
+        setInfo={lastSetInfo}
+        onComplete={handlePointsAnimationComplete}
+      />
     </SafeAreaView>
   );
 }
@@ -456,27 +481,30 @@ const styles = StyleSheet.create({
   },
   statsBar: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 8,
   },
   stat: {
-    flex: 1,
-    alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
   },
   statDivider: {
-    width: 1,
-    backgroundColor: '#374151',
-    marginHorizontal: 16,
+    fontSize: 14,
+    fontWeight: '300',
   },
   exerciseTabsContainer: {
     marginBottom: 8,

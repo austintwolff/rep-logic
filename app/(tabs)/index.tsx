@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useColorScheme } from '@/components/useColorScheme';
-import { getStreakMultiplier } from '@/lib/points-engine';
+import { getStreakMultiplier, xpForLevel, POINTS_CONFIG } from '@/lib/points-engine';
+import { getUserMuscleLevels, getBaselineStatus } from '@/services/baseline.service';
+import { MuscleLevel } from '@/types/database';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -11,10 +13,40 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const { profile, userStats, refreshUserStats } = useAuthStore();
 
+  const [muscleLevels, setMuscleLevels] = useState<MuscleLevel[]>([]);
+  const [baselineStatus, setBaselineStatus] = useState<{ total: number; completed: number; inProgress: number }>({ total: 0, completed: 0, inProgress: 0 });
+
   // Refresh user stats when screen loads
   useEffect(() => {
     refreshUserStats();
   }, []);
+
+  // Load muscle data when profile becomes available
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const loadMuscleLevels = async () => {
+      try {
+        const levels = await getUserMuscleLevels(profile.id);
+        const sorted = levels.sort((a, b) => b.current_level - a.current_level).slice(0, 6);
+        setMuscleLevels(sorted);
+      } catch (error) {
+        console.error('Error loading muscle levels:', error);
+      }
+    };
+
+    const loadBaselineStatus = async () => {
+      try {
+        const status = await getBaselineStatus(profile.id);
+        setBaselineStatus(status);
+      } catch (error) {
+        console.error('Error loading baseline status:', error);
+      }
+    };
+
+    loadMuscleLevels();
+    loadBaselineStatus();
+  }, [profile?.id]);
 
   const handleStartWorkout = () => {
     router.push('/workout/new');
@@ -140,6 +172,79 @@ export default function HomeScreen() {
                 ? `+${Math.round((streakMultiplier - 1) * 100)}% bonus on all points!`
                 : 'Keep it up! Streak bonuses start at 3 days.'}
             </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Baseline Progress */}
+      {baselineStatus.inProgress > 0 && (
+        <View style={[styles.baselineCard, { backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF' }]}>
+          <View style={styles.baselineHeader}>
+            <Text style={[styles.baselineTitle, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
+              Baseline Mode
+            </Text>
+            <Text style={[styles.baselineCount, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
+              {baselineStatus.inProgress} exercise{baselineStatus.inProgress !== 1 ? 's' : ''}
+            </Text>
+          </View>
+          <Text style={[styles.baselineDescription, { color: isDark ? '#BFDBFE' : '#1E40AF' }]}>
+            Complete 3 workouts per exercise to establish baselines and unlock progressive overload bonuses.
+          </Text>
+          <View style={styles.baselineProgress}>
+            <View style={[styles.baselineProgressBg, { backgroundColor: isDark ? '#1E40AF' : '#BFDBFE' }]}>
+              <View
+                style={[
+                  styles.baselineProgressFill,
+                  {
+                    backgroundColor: '#3B82F6',
+                    width: `${baselineStatus.total > 0 ? (baselineStatus.completed / baselineStatus.total) * 100 : 0}%`
+                  }
+                ]}
+              />
+            </View>
+            <Text style={[styles.baselineProgressText, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
+              {baselineStatus.completed}/{baselineStatus.total} complete
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Muscle Levels */}
+      {muscleLevels.length > 0 && (
+        <View style={[styles.muscleLevelsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <Text style={[styles.muscleLevelsTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            Muscle Levels
+          </Text>
+          <View style={styles.muscleLevelsGrid}>
+            {muscleLevels.map((muscle) => {
+              const currentXp = muscle.current_xp || 0;
+              const xpNeeded = xpForLevel(muscle.current_level + 1);
+              const progress = Math.min(100, (currentXp / xpNeeded) * 100);
+
+              return (
+                <View
+                  key={muscle.muscle_group}
+                  style={[styles.muscleLevel, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                >
+                  <View style={styles.muscleLevelHeader}>
+                    <Text style={[styles.muscleLevelName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+                      {muscle.muscle_group}
+                    </Text>
+                    <Text style={[styles.muscleLevelNumber, { color: '#10B981' }]}>
+                      Lv.{muscle.current_level}
+                    </Text>
+                  </View>
+                  <View style={[styles.muscleLevelProgressBg, { backgroundColor: isDark ? '#1F2937' : '#E5E7EB' }]}>
+                    <View
+                      style={[
+                        styles.muscleLevelProgressFill,
+                        { backgroundColor: '#10B981', width: `${progress}%` }
+                      ]}
+                    />
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
       )}
@@ -306,5 +411,97 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginTop: 2,
+  },
+  baselineCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 16,
+  },
+  baselineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  baselineTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  baselineCount: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  baselineDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  baselineProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  baselineProgressBg: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  baselineProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  baselineProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  muscleLevelsCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  muscleLevelsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  muscleLevelsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  muscleLevel: {
+    width: '48%',
+    padding: 12,
+    borderRadius: 12,
+  },
+  muscleLevelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  muscleLevelName: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  muscleLevelNumber: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  muscleLevelProgressBg: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  muscleLevelProgressFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 });

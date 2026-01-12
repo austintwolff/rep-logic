@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -55,7 +56,12 @@ export default function RootLayout() {
   }, [loaded, isInitialized]);
 
   if (!loaded || !isInitialized) {
-    return null;
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingLogo}>Rep Logic</Text>
+        <ActivityIndicator size="large" color="#10B981" style={styles.loadingSpinner} />
+      </View>
+    );
   }
 
   return (
@@ -65,13 +71,35 @@ export default function RootLayout() {
   );
 }
 
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingLogo: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#10B981',
+    marginBottom: 24,
+  },
+  loadingSpinner: {
+    marginTop: 8,
+  },
+});
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const session = useAuthStore((state) => state.session);
+  const isLoading = useAuthStore((state) => state.isLoading);
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // Don't redirect while auth operations are in progress
+    if (isLoading) return;
+
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!session && !inAuthGroup) {
@@ -81,7 +109,7 @@ function RootLayoutNav() {
       // Redirect to home if authenticated and on auth screens
       router.replace('/(tabs)');
     }
-  }, [session, segments]);
+  }, [session, segments, isLoading]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

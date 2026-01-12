@@ -8,7 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { PointsResult } from '@/lib/points-engine';
-import { useSettingsStore, formatWeight, parseWeightInput, getWeightIncrement, kgToLbs } from '@/stores/settings.store';
+import { useSettingsStore, getWeightIncrement } from '@/stores/settings.store';
 
 interface SetLoggerProps {
   exerciseName: string;
@@ -34,13 +34,9 @@ export default function SetLogger({
   const { weightUnit } = useSettingsStore();
   const weightIncrement = getWeightIncrement(weightUnit);
 
-  // Convert previous weight from kg (stored) to display unit
-  const previousWeightDisplay = previousWeight !== undefined
-    ? (weightUnit === 'lbs' ? kgToLbs(previousWeight) : previousWeight)
-    : undefined;
-
+  // previousWeight is now in display units (same as user's preferred unit)
   const [weight, setWeight] = useState(
-    previousWeightDisplay !== undefined ? Math.round(previousWeightDisplay).toString() : ''
+    previousWeight !== undefined ? Math.round(previousWeight).toString() : ''
   );
   const [reps, setReps] = useState('');
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
@@ -55,8 +51,8 @@ export default function SetLogger({
     if (previousReps !== undefined) {
       setReps(previousReps.toString());
     }
-    if (!isBodyweight && previousWeightDisplay !== undefined) {
-      setWeight(Math.round(previousWeightDisplay).toString());
+    if (!isBodyweight && previousWeight !== undefined) {
+      setWeight(Math.round(previousWeight).toString());
     }
   };
 
@@ -64,8 +60,10 @@ export default function SetLogger({
     const repsNum = parseInt(reps, 10);
     if (isNaN(repsNum) || repsNum <= 0) return;
 
-    // Convert from display unit to kg for storage
-    const weightNum = isBodyweight ? null : parseWeightInput(weight, weightUnit);
+    // Use the display weight directly for points calculation (volume = weight × reps)
+    // This way 100 lbs × 8 reps = 800 points, which is intuitive
+    const weightNum = isBodyweight ? null : parseFloat(weight) || 0;
+    console.log('[SetLogger] Logging set:', { weightNum, repsNum, weightUnit, rawWeight: weight });
     const result = onLogSet(weightNum, repsNum);
 
     if (result) {
@@ -132,7 +130,7 @@ export default function SetLogger({
         >
           <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>↺</Text>
           <Text style={[styles.previousText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Last: {!isBodyweight && previousWeightDisplay ? `${Math.round(previousWeightDisplay)}${weightUnit} × ` : ''}{previousReps} reps
+            Last: {!isBodyweight && previousWeight ? `${Math.round(previousWeight)}${weightUnit} × ` : ''}{previousReps} reps
           </Text>
           <View style={styles.repeatBadge}>
             <Text style={styles.repeatBadgeText}>Tap to repeat</Text>

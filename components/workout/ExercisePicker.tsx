@@ -14,6 +14,10 @@ import { DEFAULT_EXERCISES, MUSCLE_GROUPS, ExerciseDefinition } from '@/constant
 import { Exercise } from '@/types/database';
 import { fetchExercisesFromDatabase } from '@/services/workout.service';
 
+// Module-level cache to persist exercises across modal opens
+let cachedExercises: Exercise[] | null = null;
+let isFetching = false;
+
 interface ExercisePickerProps {
   visible: boolean;
   onClose: () => void;
@@ -29,31 +33,35 @@ export default function ExercisePicker({
 }: ExercisePickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
-  const [databaseExercises, setDatabaseExercises] = useState<Exercise[]>([]);
+  const [databaseExercises, setDatabaseExercises] = useState<Exercise[]>(cachedExercises || []);
   const [isLoadingExercises, setIsLoadingExercises] = useState(false);
-  const [useDatabase, setUseDatabase] = useState(false);
 
-  // Fetch exercises from database when modal opens
+  // Fetch exercises from database when modal opens (only if not cached)
   useEffect(() => {
-    if (visible && !useDatabase && databaseExercises.length === 0) {
+    if (visible && !cachedExercises && !isFetching) {
       loadExercisesFromDatabase();
     }
   }, [visible]);
 
   const loadExercisesFromDatabase = async () => {
+    isFetching = true;
     setIsLoadingExercises(true);
     try {
       const exercises = await fetchExercisesFromDatabase();
       if (exercises.length > 0) {
+        cachedExercises = exercises;
         setDatabaseExercises(exercises);
-        setUseDatabase(true);
       }
     } catch (error) {
       console.error('Failed to fetch exercises from database:', error);
     } finally {
+      isFetching = false;
       setIsLoadingExercises(false);
     }
   };
+
+  // Use cached exercises if available
+  const useDatabase = databaseExercises.length > 0;
 
   const filteredExercises = useMemo(() => {
     if (useDatabase && databaseExercises.length > 0) {
@@ -201,31 +209,32 @@ export default function ExercisePicker({
           />
         </View>
 
-        {/* Exercise List */}
-        {isLoadingExercises ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#10B981" />
-            <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              Loading exercises...
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredExercises}
-            keyExtractor={(item) => 'id' in item && item.id ? item.id : item.name}
-            renderItem={renderExercise}
-            contentContainerStyle={styles.exerciseList}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>🔍</Text>
-                <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  No exercises found
+        {/* Exercise List - show exercises immediately, loading indicator is subtle */}
+        <FlatList
+          data={filteredExercises}
+          keyExtractor={(item) => 'id' in item && item.id ? item.id : item.name}
+          renderItem={renderExercise}
+          contentContainerStyle={styles.exerciseList}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListHeaderComponent={
+            isLoadingExercises ? (
+              <View style={styles.loadingBanner}>
+                <ActivityIndicator size="small" color="#10B981" />
+                <Text style={[styles.loadingBannerText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Loading more exercises...
                 </Text>
               </View>
-            }
-          />
-        )}
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>🔍</Text>
+              <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                No exercises found
+              </Text>
+            </View>
+          }
+        />
       </SafeAreaView>
     </Modal>
   );
@@ -349,14 +358,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
   },
-  loadingContainer: {
-    flex: 1,
+  loadingBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 12,
+    gap: 8,
   },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 16,
+  loadingBannerText: {
+    fontSize: 14,
   },
 });

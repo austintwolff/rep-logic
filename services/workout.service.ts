@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { WorkoutSet, WorkoutExercise } from '@/stores/workout.store';
 import { Database } from '@/types/database';
+import { WeightUnit, lbsToKg } from '@/stores/settings.store';
 
 type WorkoutSessionInsert = Database['public']['Tables']['workout_sessions']['Insert'];
 type WorkoutSetInsert = Database['public']['Tables']['workout_sets']['Insert'];
@@ -19,6 +20,7 @@ interface SaveWorkoutParams {
   totalVolume: number;
   totalPoints: number;
   completionBonus: number;
+  weightUnit: WeightUnit; // To convert display units to kg for storage
 }
 
 interface SaveWorkoutResult {
@@ -41,10 +43,20 @@ export async function saveWorkoutToDatabase(
     totalVolume,
     totalPoints,
     completionBonus,
+    weightUnit,
   } = params;
+
+  // Helper to convert weight to kg for database storage
+  const toKg = (weight: number | null): number | null => {
+    if (weight === null) return null;
+    return weightUnit === 'lbs' ? lbsToKg(weight) : weight;
+  };
 
   try {
     // 1. Create the workout session
+    // Convert total volume to kg for storage
+    const volumeInKg = weightUnit === 'lbs' ? lbsToKg(totalVolume) : totalVolume;
+
     const sessionInsert: WorkoutSessionInsert = {
       id: workoutId,
       user_id: userId,
@@ -52,7 +64,7 @@ export async function saveWorkoutToDatabase(
       started_at: startedAt.toISOString(),
       completed_at: completedAt.toISOString(),
       duration_seconds: durationSeconds,
-      total_volume_kg: totalVolume,
+      total_volume_kg: volumeInKg,
       total_points: totalPoints,
     };
 
@@ -75,7 +87,7 @@ export async function saveWorkoutToDatabase(
         exercise_id: exercise.exercise.id,
         set_number: set.setNumber,
         set_type: set.setType,
-        weight_kg: set.weight,
+        weight_kg: toKg(set.weight), // Convert display units to kg for storage
         reps: set.reps,
         is_bodyweight: set.isBodyweight,
         points_earned: set.pointsEarned,
@@ -100,6 +112,8 @@ export async function saveWorkoutToDatabase(
     // Add set point transactions
     for (const exercise of exercises) {
       for (const set of exercise.sets) {
+        // For description, show the weight in user's preferred unit
+        const weightDisplay = set.weight ? `${set.weight}${weightUnit} × ` : '';
         pointTransactions.push({
           user_id: userId,
           workout_session_id: sessionId,
@@ -107,7 +121,7 @@ export async function saveWorkoutToDatabase(
           base_points: set.pointsEarned,
           multiplier: 1.0,
           final_points: set.pointsEarned,
-          description: `${exercise.exercise.name}: ${set.weight ? `${set.weight}kg × ` : ''}${set.reps} reps`,
+          description: `${exercise.exercise.name}: ${weightDisplay}${set.reps} reps`,
         });
       }
     }
@@ -178,7 +192,7 @@ export async function saveWorkoutToDatabase(
         total_points: (currentStats.total_points || 0) + totalPoints,
         weekly_points: (currentStats.weekly_points || 0) + totalPoints,
         total_workouts: (currentStats.total_workouts || 0) + 1,
-        total_volume_kg: (currentStats.total_volume_kg || 0) + totalVolume,
+        total_volume_kg: (currentStats.total_volume_kg || 0) + volumeInKg, // Use converted volume
         current_workout_streak: newStreak,
         longest_workout_streak: Math.max(
           currentStats.longest_workout_streak || 0,
@@ -330,7 +344,7 @@ export async function deleteWorkout(workoutId: string, userId: string): Promise<
       .select('*')
       .eq('id', workoutId)
       .eq('user_id', userId)
-      .single();
+      .single() as { data: any; error: any };
 
     if (fetchError || !workout) {
       return { success: false, error: 'Workout not found' };
@@ -364,7 +378,7 @@ export async function deleteWorkout(workoutId: string, userId: string): Promise<
       .from('user_stats')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .single() as { data: any };
 
     if (currentStats) {
       const statsUpdate: UserStatsUpdate = {
