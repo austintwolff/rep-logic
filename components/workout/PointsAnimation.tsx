@@ -130,18 +130,18 @@ export default function PointsAnimation({
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 375,
         useNativeDriver: true,
       }),
       Animated.spring(contentScale, {
         toValue: 1,
         friction: 8,
-        tension: 60,
+        tension: 50,
         useNativeDriver: true,
       }),
     ]).start();
 
-    await delay(500);
+    await delay(625);
 
     // === PHASE 2: Show base calculation formula ===
     setPhase('base-calc');
@@ -149,11 +149,11 @@ export default function PointsAnimation({
 
     Animated.timing(baseCalcOpacity, {
       toValue: 1,
-      duration: 400,
+      duration: 500,
       useNativeDriver: true,
     }).start();
 
-    await delay(1000);
+    await delay(1250);
 
     // === PHASE 3: Show base points result ===
     setPhase('base');
@@ -162,18 +162,18 @@ export default function PointsAnimation({
     Animated.parallel([
       Animated.timing(baseOpacity, {
         toValue: 1,
-        duration: 400,
+        duration: 500,
         useNativeDriver: true,
       }),
       Animated.spring(baseScale, {
         toValue: 1,
         friction: 6,
-        tension: 80,
+        tension: 65,
         useNativeDriver: true,
       }),
     ]).start();
 
-    await delay(600);
+    await delay(750);
 
     // Count up total to base value
     currentTotal.current = 0;
@@ -184,13 +184,13 @@ export default function PointsAnimation({
       },
       0,
       pointsResult.basePoints,
-      800
+      1000
     );
 
     // Pulse total
     pulseAnimation(totalScale);
 
-    await delay(800);
+    await delay(1000);
 
     // === PHASE 4: Show multiplier and bonuses ===
     if (positiveBonuses.length > 0) {
@@ -199,13 +199,30 @@ export default function PointsAnimation({
       currentMultiplier.current = 1;
       setDisplayedMultiplier(1);
 
-      Animated.timing(multiplierOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
+      // Fade out base section smoothly while fading in multiplier
+      Animated.parallel([
+        Animated.timing(baseCalcOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(baseOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(multiplierOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Hide base sections after fade completes
+        setShowBaseCalc(false);
+        setShowBase(false);
+      });
 
-      await delay(600);
+      await delay(750);
 
       // === PHASE 5: Each bonus flies in and applies ===
       for (let i = 0; i < positiveBonuses.length; i++) {
@@ -217,11 +234,11 @@ export default function PointsAnimation({
         Animated.spring(bonusAnimations[i], {
           toValue: 1,
           friction: 6,
-          tension: 60,
+          tension: 50,
           useNativeDriver: true,
         }).start();
 
-        await delay(1000);
+        await delay(1250);
 
         // Update multiplier
         const prevMultiplier = currentMultiplier.current;
@@ -234,13 +251,13 @@ export default function PointsAnimation({
           },
           prevMultiplier,
           newMultiplier,
-          600
+          750
         );
 
         // Pulse multiplier
         pulseAnimation(multiplierScale);
 
-        await delay(500);
+        await delay(625);
 
         // Calculate and animate new total
         const prevTotal = currentTotal.current;
@@ -253,13 +270,13 @@ export default function PointsAnimation({
           },
           prevTotal,
           newTotal,
-          700
+          875
         );
 
         // Pulse total
         pulseAnimation(totalScale);
 
-        await delay(700);
+        await delay(875);
       }
     }
 
@@ -275,7 +292,7 @@ export default function PointsAnimation({
         },
         currentTotal.current,
         pointsResult.finalPoints,
-        400
+        500
       );
     }
 
@@ -283,24 +300,24 @@ export default function PointsAnimation({
     Animated.sequence([
       Animated.timing(totalScale, {
         toValue: 1.3,
-        duration: 250,
+        duration: 310,
         useNativeDriver: true,
       }),
       Animated.spring(totalScale, {
         toValue: 1,
         friction: 3,
-        tension: 60,
+        tension: 50,
         useNativeDriver: true,
       }),
     ]).start();
 
-    await delay(1500);
+    await delay(1875);
 
     // === PHASE 7: Fade out ===
     setPhase('done');
     Animated.timing(overlayOpacity, {
       toValue: 0,
-      duration: 400,
+      duration: 500,
       useNativeDriver: true,
     }).start(() => {
       onComplete();
@@ -311,12 +328,12 @@ export default function PointsAnimation({
     Animated.sequence([
       Animated.timing(animValue, {
         toValue: 1.25,
-        duration: 150,
+        duration: 190,
         useNativeDriver: true,
       }),
       Animated.timing(animValue, {
         toValue: 1,
-        duration: 200,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start();
