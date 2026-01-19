@@ -315,7 +315,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   inputRow: {
     flexDirection: 'row',
@@ -359,6 +358,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   quickRepsRow: {
     flexDirection: 'row',
@@ -419,6 +419,7 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: '800',
     color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
   },
   pointsLabel: {
     fontSize: 18,

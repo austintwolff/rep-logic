@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#10B981',
+    fontVariant: ['tabular-nums'],
   },
   bodyMapCard: {
     borderRadius: 16,
@@ -274,6 +275,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   progressContainer: {
     gap: 6,
@@ -295,6 +297,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
   emptyState: {
     alignItems: 'center',

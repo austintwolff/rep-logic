@@ -99,7 +99,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   skipButton: {
     padding: 4,

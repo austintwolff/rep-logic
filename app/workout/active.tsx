@@ -498,6 +498,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 11,
@@ -565,7 +566,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: 8,
   },
   completedSet: {
@@ -598,6 +598,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#10B981',
+    fontVariant: ['tabular-nums'],
   },
   emptyState: {
     alignItems: 'center',

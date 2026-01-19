@@ -397,6 +397,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 12,
@@ -406,7 +407,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: 12,
   },
   exerciseCard: {
@@ -465,6 +465,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#10B981',
+    fontVariant: ['tabular-nums'],
   },
   exerciseSummary: {
     padding: 12,

@@ -145,7 +145,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   inputRow: {
     flexDirection: 'row',

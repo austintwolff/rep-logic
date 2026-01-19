@@ -250,7 +250,6 @@ const styles = StyleSheet.create({
   viewLabel: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 2,
     marginBottom: 8,
   },
   legend: {

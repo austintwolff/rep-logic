@@ -190,6 +190,7 @@ const styles = StyleSheet.create({
     fontSize: 56,
     fontWeight: '800',
     color: '#10B981',
+    fontVariant: ['tabular-nums'],
   },
   pointsLabel: {
     fontSize: 18,
@@ -234,6 +235,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 12,

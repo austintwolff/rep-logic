@@ -233,6 +233,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 12,
@@ -270,6 +271,7 @@ const styles = StyleSheet.create({
   streakValue: {
     fontSize: 24,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   streakLabel: {
     fontSize: 12,
@@ -288,7 +290,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   menuItem: {
     flexDirection: 'row',

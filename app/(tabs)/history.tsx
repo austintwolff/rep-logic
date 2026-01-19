@@ -185,6 +185,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
+    fontVariant: ['tabular-nums'],
   },
   emptyContainer: {
     flex: 1,

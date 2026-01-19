@@ -303,6 +303,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 12,
@@ -357,6 +358,7 @@ const styles = StyleSheet.create({
   weeklyValue: {
     fontSize: 32,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   weeklyLabel: {
     fontSize: 14,
@@ -454,6 +456,7 @@ const styles = StyleSheet.create({
   baselineProgressText: {
     fontSize: 12,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   muscleLevelsCard: {
     padding: 16,
@@ -494,6 +497,7 @@ const styles = StyleSheet.create({
   muscleLevelNumber: {
     fontSize: 13,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   muscleLevelProgressBg: {
     height: 4,
