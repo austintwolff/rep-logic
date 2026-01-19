@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Animated,
 } from 'react-native';
 import { PointsResult } from '@/lib/points-engine';
 import { useSettingsStore, getWeightIncrement } from '@/stores/settings.store';
@@ -39,10 +38,6 @@ export default function SetLogger({
     previousWeight !== undefined ? Math.round(previousWeight).toString() : ''
   );
   const [reps, setReps] = useState('');
-  const [showPointsAnimation, setShowPointsAnimation] = useState(false);
-  const [lastPoints, setLastPoints] = useState<PointsResult | null>(null);
-  const pointsOpacity = useState(new Animated.Value(0))[0];
-  const pointsScale = useState(new Animated.Value(0.5))[0];
 
   const isBodyweight = exerciseType === 'bodyweight';
   const hasPreviousSet = previousReps !== undefined && (isBodyweight || previousWeight !== undefined);
@@ -67,38 +62,6 @@ export default function SetLogger({
     const result = onLogSet(weightNum, repsNum);
 
     if (result) {
-      setLastPoints(result);
-      setShowPointsAnimation(true);
-
-      // Animate points
-      pointsOpacity.setValue(0);
-      pointsScale.setValue(0.5);
-
-      Animated.parallel([
-        Animated.timing(pointsOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(pointsScale, {
-          toValue: 1,
-          friction: 4,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Fade out after delay
-      setTimeout(() => {
-        Animated.timing(pointsOpacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }).start(() => {
-          setShowPointsAnimation(false);
-          setLastPoints(null);
-        });
-      }, 2000);
-
       // Reset reps for next set
       setReps('');
 
@@ -254,31 +217,6 @@ export default function SetLogger({
         <Text style={styles.logButtonIcon}>✓</Text>
         <Text style={styles.logButtonText}>Log Set</Text>
       </TouchableOpacity>
-
-      {/* Points Animation Overlay */}
-      {showPointsAnimation && lastPoints && (
-        <Animated.View
-          style={[
-            styles.pointsOverlay,
-            {
-              opacity: pointsOpacity,
-              transform: [{ scale: pointsScale }],
-            },
-          ]}
-        >
-          <Text style={styles.pointsValue}>+{lastPoints.finalPoints}</Text>
-          <Text style={styles.pointsLabel}>points</Text>
-          {lastPoints.bonuses.length > 0 && (
-            <View style={styles.bonusesContainer}>
-              {lastPoints.bonuses.map((bonus, index) => (
-                <Text key={index} style={styles.bonusText}>
-                  {bonus.description}
-                </Text>
-              ))}
-            </View>
-          )}
-        </Animated.View>
-      )}
     </View>
   );
 }
@@ -403,36 +341,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
-  },
-  pointsOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(16, 185, 129, 0.95)',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pointsValue: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    fontVariant: ['tabular-nums'],
-  },
-  pointsLabel: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    opacity: 0.9,
-  },
-  bonusesContainer: {
-    marginTop: 12,
-  },
-  bonusText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    textAlign: 'center',
   },
 });
