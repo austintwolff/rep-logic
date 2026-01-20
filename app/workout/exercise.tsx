@@ -16,7 +16,7 @@ import { useSettingsStore, kgToLbs } from '@/stores/settings.store';
 import { getBestSetFromRecentWorkouts, BestSetResult } from '@/services/workout.service';
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
-import PointsAnimation from '@/components/workout/PointsAnimation';
+import AnimatedSetRow from '@/components/workout/AnimatedSetRow';
 import { PointsResult } from '@/lib/points-engine/types';
 
 export default function ExerciseDetailScreen() {
@@ -41,9 +41,9 @@ export default function ExerciseDetailScreen() {
     tickRestTimer,
   } = useWorkoutStore();
 
-  const [showPointsAnimation, setShowPointsAnimation] = useState(false);
-  const [lastPointsResult, setLastPointsResult] = useState<PointsResult | null>(null);
-  const [lastSetInfo, setLastSetInfo] = useState<{ weight: number | null; reps: number; isBodyweight: boolean; weightUnit: 'kg' | 'lbs' }>({ weight: null, reps: 0, isBodyweight: false, weightUnit: 'kg' });
+  const [animatingSetIndex, setAnimatingSetIndex] = useState<number | null>(null);
+  const [animatingPointsResult, setAnimatingPointsResult] = useState<PointsResult | null>(null);
+  const [animatingSetInfo, setAnimatingSetInfo] = useState<{ weight: number | null; reps: number; isBodyweight: boolean } | null>(null);
   const [historicalBestSet, setHistoricalBestSet] = useState<BestSetResult | null>(null);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -111,6 +111,7 @@ export default function ExerciseDetailScreen() {
 
   const handleLogSet = (weight: number | null, reps: number) => {
     const isBodyweight = currentExercise?.exercise.exercise_type === 'bodyweight';
+    const newSetIndex = currentExercise?.sets.length || 0;
 
     const result = logSet({
       weight,
@@ -119,19 +120,20 @@ export default function ExerciseDetailScreen() {
       currentStreak: userStats?.current_workout_streak || 0,
     });
 
-    // Trigger points animation
+    // Trigger inline animation
     if (result) {
-      setLastSetInfo({ weight, reps, isBodyweight, weightUnit });
-      setLastPointsResult(result);
-      setShowPointsAnimation(true);
+      setAnimatingSetInfo({ weight, reps, isBodyweight });
+      setAnimatingPointsResult(result);
+      setAnimatingSetIndex(newSetIndex);
     }
 
     return result;
   };
 
-  const handlePointsAnimationComplete = () => {
-    setShowPointsAnimation(false);
-    setLastPointsResult(null);
+  const handleAnimationComplete = () => {
+    setAnimatingSetIndex(null);
+    setAnimatingPointsResult(null);
+    setAnimatingSetInfo(null);
   };
 
   const handleAdjustRestTime = (seconds: number) => {
@@ -220,25 +222,45 @@ export default function ExerciseDetailScreen() {
             <Text style={[styles.completedTitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               Completed Sets
             </Text>
-            {currentExercise.sets.map((set, index) => (
-              <View
-                key={set.id}
-                style={[styles.completedSet, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
-              >
-                <Text style={[styles.setNumber, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {index + 1}
-                </Text>
-                <Text style={[styles.setDetails, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-                  {set.isBodyweight
-                    ? `${set.reps} reps`
-                    : `${set.weight}${weightUnit} × ${set.reps}`}
-                </Text>
-                <View style={styles.setPoints}>
-                  <Text style={styles.starIcon}>★</Text>
-                  <Text style={styles.setPointsText}>{set.pointsEarned}</Text>
+            {currentExercise.sets.map((set, index) => {
+              // Use AnimatedSetRow for the set that's currently animating
+              if (index === animatingSetIndex && animatingPointsResult && animatingSetInfo) {
+                return (
+                  <AnimatedSetRow
+                    key={set.id}
+                    setNumber={index + 1}
+                    weight={animatingSetInfo.weight}
+                    reps={animatingSetInfo.reps}
+                    isBodyweight={animatingSetInfo.isBodyweight}
+                    weightUnit={weightUnit}
+                    pointsResult={animatingPointsResult}
+                    onAnimationComplete={handleAnimationComplete}
+                    isDark={isDark}
+                  />
+                );
+              }
+
+              // Static row for non-animating sets
+              return (
+                <View
+                  key={set.id}
+                  style={[styles.completedSet, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+                >
+                  <Text style={[styles.setNumber, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                    {index + 1}
+                  </Text>
+                  <Text style={[styles.setDetails, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+                    {set.isBodyweight
+                      ? `${set.reps} reps`
+                      : `${set.weight}${weightUnit} × ${set.reps}`}
+                  </Text>
+                  <View style={styles.setPoints}>
+                    <Text style={styles.starIcon}>★</Text>
+                    <Text style={styles.setPointsText}>{set.pointsEarned}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -270,14 +292,6 @@ export default function ExerciseDetailScreen() {
           isDark={isDark}
         />
       </ScrollView>
-
-      {/* Points Animation */}
-      <PointsAnimation
-        visible={showPointsAnimation}
-        pointsResult={lastPointsResult}
-        setInfo={lastSetInfo}
-        onComplete={handlePointsAnimationComplete}
-      />
     </SafeAreaView>
   );
 }
