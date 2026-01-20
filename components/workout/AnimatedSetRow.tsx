@@ -149,19 +149,19 @@ export default function AnimatedSetRow({
     bonusOpacity.value = 0;
 
     bonusScale.value = withSequence(
-      withTiming(1.12, { duration: 150, easing: Easing.out(Easing.quad) }),
-      withTiming(1, { duration: 150, easing: Easing.in(Easing.quad) }),
-      withDelay(500, withTiming(0.8, { duration: 180 })),
-      withTiming(0, { duration: 120 })
+      withTiming(1.12, { duration: 180, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 180, easing: Easing.in(Easing.quad) }),
+      withDelay(800, withTiming(0.8, { duration: 200 })),
+      withTiming(0, { duration: 150 })
     );
     bonusOpacity.value = withSequence(
-      withTiming(1, { duration: 100 }),
-      withDelay(650, withTiming(0, { duration: 180 }))
+      withTiming(1, { duration: 120 }),
+      withDelay(1000, withTiming(0, { duration: 200 }))
     );
 
     // Count up points for this bonus
     setTimeout(() => {
-      countUpPoints(prevPoints, targetPoints, 400, () => {
+      countUpPoints(prevPoints, targetPoints, 500, () => {
         // Move to next bonus or finish
         setTimeout(() => {
           if (currentBonusIndex < displayBonuses.length - 1) {
@@ -169,9 +169,9 @@ export default function AnimatedSetRow({
           } else {
             finishAnimation();
           }
-        }, 500);
+        }, 700);
       });
-    }, 150);
+    }, 180);
   }, [currentBonusIndex]);
 
   const finishAnimation = () => {
@@ -238,10 +238,7 @@ export default function AnimatedSetRow({
         </Animated.Text>
       </Animated.View>
 
-      <View style={styles.pointsContainer}>
-        <Text style={styles.starIcon}>★</Text>
-        <Text style={styles.pointsText}>{displayedPoints}</Text>
-      </View>
+      <Text style={styles.pointsText}>{displayedPoints}</Text>
 
       {/* Bonus badge - absolutely positioned so it doesn't shift the layout */}
       {currentBonus && animationPhase === 'bonus' && (
@@ -294,15 +291,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
-  },
-  pointsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  starIcon: {
-    fontSize: 12,
-    color: '#10B981',
   },
   pointsText: {
     fontSize: 14,
