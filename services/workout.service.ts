@@ -456,3 +456,85 @@ export async function deleteWorkout(workoutId: string, userId: string): Promise<
     };
   }
 }
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  totalPoints: number;
+  totalWorkouts: number;
+  bestWorkoutPoints: number;
+}
+
+export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
+  try {
+    // Get all profiles with their stats
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, username');
+
+    if (profilesError || !profiles) {
+      console.error('Error fetching profiles:', profilesError);
+      return [];
+    }
+
+    // Get all user stats
+    const { data: stats, error: statsError } = await supabase
+      .from('user_stats')
+      .select('user_id, total_points, total_workouts');
+
+    if (statsError) {
+      console.error('Error fetching user stats:', statsError);
+    }
+
+    // Get best workout points for each user
+    const { data: bestWorkouts, error: bestWorkoutsError } = await supabase
+      .from('workout_sessions')
+      .select('user_id, total_points');
+
+    if (bestWorkoutsError) {
+      console.error('Error fetching best workouts:', bestWorkoutsError);
+    }
+
+    // Calculate best workout per user
+    const bestByUser = new Map<string, number>();
+    if (bestWorkouts) {
+      for (const workout of bestWorkouts) {
+        const current = bestByUser.get(workout.user_id) || 0;
+        if (workout.total_points > current) {
+          bestByUser.set(workout.user_id, workout.total_points);
+        }
+      }
+    }
+
+    // Build stats map
+    const statsMap = new Map<string, { totalPoints: number; totalWorkouts: number }>();
+    if (stats) {
+      for (const stat of stats) {
+        statsMap.set(stat.user_id, {
+          totalPoints: stat.total_points || 0,
+          totalWorkouts: stat.total_workouts || 0,
+        });
+      }
+    }
+
+    // Combine data
+    const leaderboard: LeaderboardEntry[] = profiles.map((profile) => {
+      const userStats = statsMap.get(profile.id);
+      return {
+        userId: profile.id,
+        username: profile.username,
+        totalPoints: userStats?.totalPoints || 0,
+        totalWorkouts: userStats?.totalWorkouts || 0,
+        bestWorkoutPoints: bestByUser.get(profile.id) || 0,
+      };
+    });
+
+    // Sort by total points descending
+    leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    return leaderboard;
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    return [];
+  }
+}
