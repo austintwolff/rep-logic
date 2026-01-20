@@ -121,13 +121,17 @@ export default function ExercisePicker({
     }));
 
     // If we have database exercises, merge with local (database takes precedence for duplicates)
+    let combined: Exercise[];
     if (databaseExercises.length > 0) {
       const dbNames = new Set(databaseExercises.map(e => e.name.toLowerCase()));
       const uniqueLocal = localAsExercises.filter(e => !dbNames.has(e.name.toLowerCase()));
-      return [...databaseExercises, ...uniqueLocal];
+      combined = [...databaseExercises, ...uniqueLocal];
+    } else {
+      combined = localAsExercises;
     }
 
-    return localAsExercises;
+    // Sort alphabetically by name
+    return combined.sort((a, b) => a.name.localeCompare(b.name));
   }, [databaseExercises]);
 
   const filteredExercises = useMemo(() => {
