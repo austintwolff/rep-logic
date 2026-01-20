@@ -14,7 +14,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
-import { saveWorkoutToDatabase } from '@/services/workout.service';
+import { saveWorkoutToDatabase, getBestSetFromRecentWorkouts, BestSetResult } from '@/services/workout.service';
+import { kgToLbs } from '@/stores/settings.store';
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
 import ExercisePicker from '@/components/workout/ExercisePicker';
@@ -52,6 +53,7 @@ export default function ActiveWorkoutScreen() {
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
   const [lastPointsResult, setLastPointsResult] = useState<PointsResult | null>(null);
   const [lastSetInfo, setLastSetInfo] = useState<{ weight: number | null; reps: number; isBodyweight: boolean; weightUnit: 'kg' | 'lbs' }>({ weight: null, reps: 0, isBodyweight: false, weightUnit: 'kg' });
+  const [historicalBestSet, setHistoricalBestSet] = useState<BestSetResult | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -77,6 +79,22 @@ export default function ActiveWorkoutScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [activeWorkout?.startedAt]);
+
+  // Fetch historical best set when exercise changes
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      const currentEx = activeWorkout?.exercises[currentExerciseIndex];
+      if (!currentEx || !user?.id) {
+        setHistoricalBestSet(null);
+        return;
+      }
+
+      const bestSet = await getBestSetFromRecentWorkouts(user.id, currentEx.exercise.id, 3);
+      setHistoricalBestSet(bestSet);
+    };
+
+    fetchHistoricalData();
+  }, [currentExerciseIndex, activeWorkout?.exercises.length, user?.id]);
 
   // Rest timer
   useEffect(() => {
@@ -396,6 +414,14 @@ export default function ActiveWorkoutScreen() {
                   ? currentExercise.sets[currentExercise.sets.length - 1].reps
                   : undefined
               }
+              historicalWeight={
+                historicalBestSet
+                  ? weightUnit === 'lbs'
+                    ? kgToLbs(historicalBestSet.weight)
+                    : historicalBestSet.weight
+                  : undefined
+              }
+              historicalReps={historicalBestSet?.reps}
               onLogSet={handleLogSet}
               onStartRest={startRestTimer}
               isDark={isDark}

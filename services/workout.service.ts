@@ -336,6 +336,61 @@ export async function fetchExercisesFromDatabase(): Promise<any[]> {
   return data || [];
 }
 
+export interface BestSetResult {
+  weight: number;  // In kg (database stores kg)
+  reps: number;
+}
+
+/**
+ * Get the best set from the last N workouts for a specific exercise.
+ * "Best" = heaviest weight from a set with at least 4 reps.
+ */
+export async function getBestSetFromRecentWorkouts(
+  userId: string,
+  exerciseId: string,
+  workoutLimit: number = 3
+): Promise<BestSetResult | null> {
+  try {
+    // Get the last N workout session IDs for this user
+    const { data: recentSessions, error: sessionsError } = await supabase
+      .from('workout_sessions')
+      .select('id')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false })
+      .limit(workoutLimit);
+
+    if (sessionsError || !recentSessions || recentSessions.length === 0) {
+      return null;
+    }
+
+    const sessionIds = recentSessions.map(s => s.id);
+
+    // Get all sets for this exercise from those sessions with at least 4 reps
+    const { data: sets, error: setsError } = await supabase
+      .from('workout_sets')
+      .select('weight_kg, reps')
+      .eq('exercise_id', exerciseId)
+      .in('workout_session_id', sessionIds)
+      .gte('reps', 4)
+      .not('weight_kg', 'is', null)
+      .order('weight_kg', { ascending: false })
+      .limit(1);
+
+    if (setsError || !sets || sets.length === 0) {
+      return null;
+    }
+
+    const bestSet = sets[0];
+    return {
+      weight: bestSet.weight_kg || 0,
+      reps: bestSet.reps || 0,
+    };
+  } catch (error) {
+    console.error('Error fetching best set from recent workouts:', error);
+    return null;
+  }
+}
+
 export async function deleteWorkout(workoutId: string, userId: string): Promise<{ success: boolean; error?: string }> {
   try {
     // First get the workout to verify ownership and get stats to subtract
