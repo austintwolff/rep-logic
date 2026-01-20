@@ -166,6 +166,14 @@ export default function ActiveWorkoutScreen() {
     router.push(`/workout/exercise?index=${index}`);
   };
 
+  const handleAddExercise = (exercise: Parameters<typeof addExercise>[0]) => {
+    const newIndex = activeWorkout?.exercises.length || 0;
+    addExercise(exercise);
+    setShowExercisePicker(false);
+    // Navigate to the newly added exercise
+    router.push(`/workout/exercise?index=${newIndex}`);
+  };
+
   const totalSets = activeWorkout?.exercises.reduce((sum, ex) => sum + ex.sets.length, 0) || 0;
 
   if (!activeWorkout) {
@@ -294,7 +302,7 @@ export default function ActiveWorkoutScreen() {
       <ExercisePicker
         visible={showExercisePicker}
         onClose={() => setShowExercisePicker(false)}
-        onSelectExercise={addExercise}
+        onSelectExercise={handleAddExercise}
         isDark={isDark}
       />
     </SafeAreaView>
