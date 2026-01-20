@@ -34,9 +34,12 @@ const MUSCLE_ICONS: Record<string, string> = {
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ name?: string }>();
+  const params = useLocalSearchParams<{ name?: string; goal?: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  // Goal mode from setup screen (for future use)
+  const goalMode = params.goal as 'Strength' | 'Hypertrophy' | 'Endurance' | undefined;
 
   const { user, refreshUserStats } = useAuthStore();
   const { weightUnit } = useSettingsStore();
