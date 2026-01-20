@@ -12,7 +12,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { useSettingsStore } from '@/stores/settings.store';
+import { useSettingsStore, kgToLbs } from '@/stores/settings.store';
+import { getBestSetFromRecentWorkouts, BestSetResult } from '@/services/workout.service';
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
 import PointsAnimation from '@/components/workout/PointsAnimation';
@@ -26,7 +27,7 @@ export default function ExerciseDetailScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const { profile, userStats } = useAuthStore();
+  const { user, profile, userStats } = useAuthStore();
   const { weightUnit } = useSettingsStore();
   const {
     activeWorkout,
@@ -43,12 +44,29 @@ export default function ExerciseDetailScreen() {
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
   const [lastPointsResult, setLastPointsResult] = useState<PointsResult | null>(null);
   const [lastSetInfo, setLastSetInfo] = useState<{ weight: number | null; reps: number; isBodyweight: boolean; weightUnit: 'kg' | 'lbs' }>({ weight: null, reps: 0, isBodyweight: false, weightUnit: 'kg' });
+  const [historicalBestSet, setHistoricalBestSet] = useState<BestSetResult | null>(null);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Set current exercise on mount
   useEffect(() => {
     setCurrentExercise(exerciseIndex);
   }, [exerciseIndex]);
+
+  // Fetch historical best set when exercise changes
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      const currentEx = activeWorkout?.exercises[exerciseIndex];
+      if (!currentEx || !user?.id) {
+        setHistoricalBestSet(null);
+        return;
+      }
+
+      const bestSet = await getBestSetFromRecentWorkouts(user.id, currentEx.exercise.id, 3);
+      setHistoricalBestSet(bestSet);
+    };
+
+    fetchHistoricalData();
+  }, [exerciseIndex, user?.id]);
 
   // Rest timer
   useEffect(() => {
@@ -239,6 +257,14 @@ export default function ExerciseDetailScreen() {
               ? currentExercise.sets[currentExercise.sets.length - 1].reps
               : undefined
           }
+          historicalWeight={
+            historicalBestSet
+              ? weightUnit === 'lbs'
+                ? kgToLbs(historicalBestSet.weight)
+                : historicalBestSet.weight
+              : undefined
+          }
+          historicalReps={historicalBestSet?.reps}
           onLogSet={handleLogSet}
           onStartRest={startRestTimer}
           isDark={isDark}

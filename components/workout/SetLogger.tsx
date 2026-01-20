@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ interface SetLoggerProps {
   exerciseName: string;
   exerciseType: 'weighted' | 'bodyweight';
   setNumber: number;
-  previousWeight?: number;
-  previousReps?: number;
+  previousWeight?: number;  // From previous set in current workout
+  previousReps?: number;    // From previous set in current workout
+  historicalWeight?: number; // From best set of last 3 workouts (for first set)
+  historicalReps?: number;   // From best set of last 3 workouts (for first set)
   onLogSet: (weight: number | null, reps: number) => PointsResult | null;
   onStartRest: (seconds: number) => void;
   isDark: boolean;
@@ -26,30 +28,49 @@ export default function SetLogger({
   setNumber,
   previousWeight,
   previousReps,
+  historicalWeight,
+  historicalReps,
   onLogSet,
   onStartRest,
   isDark,
 }: SetLoggerProps) {
   const { weightUnit } = useSettingsStore();
   const weightIncrement = getWeightIncrement(weightUnit);
-
-  // previousWeight is now in display units (same as user's preferred unit)
-  const [weight, setWeight] = useState(
-    previousWeight !== undefined ? Math.round(previousWeight).toString() : ''
-  );
-  const [reps, setReps] = useState('');
-
   const isBodyweight = exerciseType === 'bodyweight';
-  const hasPreviousSet = previousReps !== undefined && (isBodyweight || previousWeight !== undefined);
 
-  const handleRepeatLastSet = () => {
-    if (previousReps !== undefined) {
-      setReps(previousReps.toString());
+  // Determine initial values:
+  // - For subsequent sets (setNumber > 1): use previous set's weight and reps
+  // - For first set: use historical data (weight same, reps + 1)
+  const getInitialWeight = (): string => {
+    if (isBodyweight) return '';
+    if (setNumber > 1 && previousWeight !== undefined) {
+      return Math.round(previousWeight).toString();
     }
-    if (!isBodyweight && previousWeight !== undefined) {
-      setWeight(Math.round(previousWeight).toString());
+    if (setNumber === 1 && historicalWeight !== undefined) {
+      return Math.round(historicalWeight).toString();
     }
+    return '';
   };
+
+  const getInitialReps = (): string => {
+    if (setNumber > 1 && previousReps !== undefined) {
+      return previousReps.toString();
+    }
+    if (setNumber === 1 && historicalReps !== undefined) {
+      // Add 1 rep to historical best for progressive overload
+      return (historicalReps + 1).toString();
+    }
+    return '';
+  };
+
+  const [weight, setWeight] = useState(getInitialWeight);
+  const [reps, setReps] = useState(getInitialReps);
+
+  // Update values when set number changes (after logging a set)
+  useEffect(() => {
+    setWeight(getInitialWeight());
+    setReps(getInitialReps());
+  }, [setNumber, previousWeight, previousReps]);
 
   const handleLogSet = () => {
     const repsNum = parseInt(reps, 10);
@@ -62,10 +83,7 @@ export default function SetLogger({
     const result = onLogSet(weightNum, repsNum);
 
     if (result) {
-      // Reset reps for next set
-      setReps('');
-
-      // Start rest timer
+      // Start rest timer (weight/reps will auto-update via useEffect when setNumber changes)
       onStartRest(90);
     }
   };
@@ -84,23 +102,6 @@ export default function SetLogger({
 
   return (
     <View style={styles.container}>
-      {/* Previous Performance + Repeat Button */}
-      {hasPreviousSet && (
-        <TouchableOpacity
-          style={[styles.previousContainer, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
-          onPress={handleRepeatLastSet}
-          activeOpacity={0.7}
-        >
-          <Text style={{ fontSize: 14, color: isDark ? '#9CA3AF' : '#6B7280' }}>↺</Text>
-          <Text style={[styles.previousText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Last: {!isBodyweight && previousWeight ? `${Math.round(previousWeight)}${weightUnit} × ` : ''}{previousReps} reps
-          </Text>
-          <View style={styles.repeatBadge}>
-            <Text style={styles.repeatBadgeText}>Tap to repeat</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-
       {/* Set Number */}
       <Text style={[styles.setLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
         Set {setNumber}
@@ -224,29 +225,6 @@ export default function SetLogger({
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-  },
-  previousContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  previousText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  repeatBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  repeatBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
   },
   setLabel: {
     fontSize: 14,
