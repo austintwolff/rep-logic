@@ -18,11 +18,33 @@ import { fetchExercisesFromDatabase } from '@/services/workout.service';
 let cachedExercises: Exercise[] | null = null;
 let isFetching = false;
 
+// Map workout types to relevant muscle groups
+const WORKOUT_MUSCLE_MAP: Record<string, string[]> = {
+  'Push Day': ['Chest', 'Shoulders', 'Triceps'],
+  'Pull Day': ['Back', 'Biceps', 'Forearms'],
+  'Leg Day': ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'],
+  'Upper Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+  'Lower Body': ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'],
+  'Full Body': [], // Empty means all
+};
+
+// Get short label for workout type filter
+const getWorkoutFilterLabel = (workoutName: string): string => {
+  if (workoutName.includes('Push')) return 'Push';
+  if (workoutName.includes('Pull')) return 'Pull';
+  if (workoutName.includes('Leg')) return 'Legs';
+  if (workoutName.includes('Upper')) return 'Upper';
+  if (workoutName.includes('Lower')) return 'Lower';
+  if (workoutName.includes('Full')) return 'Full Body';
+  return workoutName;
+};
+
 interface ExercisePickerProps {
   visible: boolean;
   onClose: () => void;
   onSelectExercise: (exercise: Exercise) => void;
   isDark: boolean;
+  workoutName?: string;
 }
 
 export default function ExercisePicker({
@@ -30,11 +52,33 @@ export default function ExercisePicker({
   onClose,
   onSelectExercise,
   isDark,
+  workoutName,
 }: ExercisePickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
+  // 'workout' = workout-specific filter, null = all, string = specific muscle group
+  const [selectedFilter, setSelectedFilter] = useState<'workout' | null | string>('workout');
   const [databaseExercises, setDatabaseExercises] = useState<Exercise[]>(cachedExercises || []);
   const [isLoadingExercises, setIsLoadingExercises] = useState(false);
+
+  // Get muscles for the current workout type
+  const workoutMuscles = useMemo(() => {
+    if (!workoutName) return [];
+    // Find matching workout type
+    for (const [key, muscles] of Object.entries(WORKOUT_MUSCLE_MAP)) {
+      if (workoutName.toLowerCase().includes(key.toLowerCase().split(' ')[0])) {
+        return muscles;
+      }
+    }
+    return [];
+  }, [workoutName]);
+
+  // Reset filter when modal opens
+  useEffect(() => {
+    if (visible) {
+      setSelectedFilter(workoutMuscles.length > 0 ? 'workout' : null);
+      setSearchQuery('');
+    }
+  }, [visible, workoutMuscles.length]);
 
   // Fetch exercises from database when modal opens (only if not cached)
   useEffect(() => {
@@ -64,13 +108,22 @@ export default function ExercisePicker({
   const useDatabase = databaseExercises.length > 0;
 
   const filteredExercises = useMemo(() => {
+    const matchesMuscleFilter = (muscleGroup: string): boolean => {
+      if (selectedFilter === null) return true; // All
+      if (selectedFilter === 'workout') {
+        // Match any muscle in the workout type
+        return workoutMuscles.length === 0 || workoutMuscles.includes(muscleGroup);
+      }
+      // Specific muscle group
+      return muscleGroup === selectedFilter;
+    };
+
     if (useDatabase && databaseExercises.length > 0) {
       return databaseExercises.filter((exercise) => {
         const matchesSearch = exercise.name
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
-        const matchesMuscle =
-          !selectedMuscleGroup || exercise.muscle_group === selectedMuscleGroup;
+        const matchesMuscle = matchesMuscleFilter(exercise.muscle_group);
         return matchesSearch && matchesMuscle;
       });
     }
@@ -80,11 +133,10 @@ export default function ExercisePicker({
       const matchesSearch = exercise.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      const matchesMuscle =
-        !selectedMuscleGroup || exercise.muscleGroup === selectedMuscleGroup;
+      const matchesMuscle = matchesMuscleFilter(exercise.muscleGroup);
       return matchesSearch && matchesMuscle;
     });
-  }, [searchQuery, selectedMuscleGroup, useDatabase, databaseExercises]);
+  }, [searchQuery, selectedFilter, workoutMuscles, useDatabase, databaseExercises]);
 
   const handleSelectExercise = (exerciseOrDef: Exercise | ExerciseDefinition) => {
     let exercise: Exercise;
@@ -111,7 +163,6 @@ export default function ExercisePicker({
     onSelectExercise(exercise);
     onClose();
     setSearchQuery('');
-    setSelectedMuscleGroup(null);
   };
 
   const renderExercise = ({ item }: { item: Exercise | ExerciseDefinition }) => {
@@ -179,32 +230,47 @@ export default function ExercisePicker({
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={['All', ...MUSCLE_GROUPS]}
+            data={[
+              ...(workoutMuscles.length > 0 ? ['workout'] : []),
+              'All',
+              ...MUSCLE_GROUPS,
+            ]}
             keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
-                  (item === 'All' ? !selectedMuscleGroup : selectedMuscleGroup === item) &&
-                    styles.filterChipActive,
-                ]}
-                onPress={() =>
-                  setSelectedMuscleGroup(item === 'All' ? null : item)
-                }
-              >
-                <Text
+            renderItem={({ item }) => {
+              const isActive =
+                (item === 'workout' && selectedFilter === 'workout') ||
+                (item === 'All' && selectedFilter === null) ||
+                (item !== 'workout' && item !== 'All' && selectedFilter === item);
+
+              const label = item === 'workout'
+                ? getWorkoutFilterLabel(workoutName || '')
+                : item;
+
+              return (
+                <TouchableOpacity
                   style={[
-                    styles.filterChipText,
-                    { color: isDark ? '#9CA3AF' : '#6B7280' },
-                    (item === 'All' ? !selectedMuscleGroup : selectedMuscleGroup === item) &&
-                      styles.filterChipTextActive,
+                    styles.filterChip,
+                    { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
+                    isActive && styles.filterChipActive,
                   ]}
+                  onPress={() => {
+                    if (item === 'workout') setSelectedFilter('workout');
+                    else if (item === 'All') setSelectedFilter(null);
+                    else setSelectedFilter(item);
+                  }}
                 >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            )}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: isDark ? '#9CA3AF' : '#6B7280' },
+                      isActive && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
             contentContainerStyle={styles.filterList}
           />
         </View>

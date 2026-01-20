@@ -304,6 +304,7 @@ export default function ActiveWorkoutScreen() {
         onClose={() => setShowExercisePicker(false)}
         onSelectExercise={handleAddExercise}
         isDark={isDark}
+        workoutName={activeWorkout?.name}
       />
     </SafeAreaView>
   );
