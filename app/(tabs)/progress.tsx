@@ -5,7 +5,6 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { getUserMuscleLevels } from '@/services/baseline.service';
 import { xpForLevel } from '@/lib/points-engine';
 import { MuscleLevel } from '@/types/database';
-import BodyMap from '@/components/progress/BodyMap';
 
 // All muscle groups we track (granular)
 const ALL_MUSCLE_GROUPS = [
@@ -134,11 +133,6 @@ export default function ProgressScreen() {
         </View>
       </View>
 
-      {/* Body Map */}
-      <View style={[styles.bodyMapCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-        <BodyMap muscleLevels={sortedMuscles} isDark={isDark} />
-      </View>
-
       {/* Muscle Cards */}
       <View style={styles.muscleList}>
         {sortedMuscles.map((muscle) => {
@@ -225,15 +219,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#10B981',
     fontVariant: ['tabular-nums'],
-  },
-  bodyMapCard: {
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   muscleList: {
     gap: 12,
