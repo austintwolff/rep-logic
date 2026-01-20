@@ -191,7 +191,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   optionIcon: {
-    fontSize: 24,
+    fontSize: 28,
+    textAlign: 'center',
+    lineHeight: 34,
   },
   optionText: {
     fontSize: 12,
