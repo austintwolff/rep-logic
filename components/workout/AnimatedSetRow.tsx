@@ -144,24 +144,24 @@ export default function AnimatedSetRow({
       : getPointsAtPhase(currentBonusIndex - 1);
     const targetPoints = getPointsAtPhase(currentBonusIndex);
 
-    // Reset and animate bonus appearing
+    // Reset and animate bonus appearing (50% longer display time)
     bonusScale.value = 0;
     bonusOpacity.value = 0;
 
     bonusScale.value = withSequence(
-      withTiming(1.12, { duration: 120, easing: Easing.out(Easing.quad) }),
-      withTiming(1, { duration: 120, easing: Easing.in(Easing.quad) }),
-      withDelay(250, withTiming(0.8, { duration: 150 })),
-      withTiming(0, { duration: 100 })
+      withTiming(1.12, { duration: 150, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 150, easing: Easing.in(Easing.quad) }),
+      withDelay(500, withTiming(0.8, { duration: 180 })),
+      withTiming(0, { duration: 120 })
     );
     bonusOpacity.value = withSequence(
-      withTiming(1, { duration: 80 }),
-      withDelay(350, withTiming(0, { duration: 150 }))
+      withTiming(1, { duration: 100 }),
+      withDelay(650, withTiming(0, { duration: 180 }))
     );
 
     // Count up points for this bonus
     setTimeout(() => {
-      countUpPoints(prevPoints, targetPoints, 250, () => {
+      countUpPoints(prevPoints, targetPoints, 400, () => {
         // Move to next bonus or finish
         setTimeout(() => {
           if (currentBonusIndex < displayBonuses.length - 1) {
@@ -169,9 +169,9 @@ export default function AnimatedSetRow({
           } else {
             finishAnimation();
           }
-        }, 350);
+        }, 500);
       });
-    }, 100);
+    }, 150);
   }, [currentBonusIndex]);
 
   const finishAnimation = () => {
@@ -238,7 +238,12 @@ export default function AnimatedSetRow({
         </Animated.Text>
       </Animated.View>
 
-      {/* Bonus badge - shows during bonus animation phase */}
+      <View style={styles.pointsContainer}>
+        <Text style={styles.starIcon}>★</Text>
+        <Text style={styles.pointsText}>{displayedPoints}</Text>
+      </View>
+
+      {/* Bonus badge - absolutely positioned so it doesn't shift the layout */}
       {currentBonus && animationPhase === 'bonus' && (
         <Animated.View
           style={[
@@ -252,11 +257,6 @@ export default function AnimatedSetRow({
           </Text>
         </Animated.View>
       )}
-
-      <View style={styles.pointsContainer}>
-        <Text style={styles.starIcon}>★</Text>
-        <Text style={styles.pointsText}>{displayedPoints}</Text>
-      </View>
     </View>
   );
 }
@@ -268,6 +268,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     marginBottom: 6,
+    position: 'relative',
   },
   setNumber: {
     width: 24,
@@ -283,10 +284,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bonusBadge: {
+    position: 'absolute',
+    right: 70,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginRight: 8,
   },
   bonusText: {
     color: '#FFFFFF',
