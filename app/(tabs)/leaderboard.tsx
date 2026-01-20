@@ -37,59 +37,82 @@ export default function LeaderboardScreen() {
     ? leaderboard.reduce((max, entry) => entry.bestWorkoutPoints > max.bestWorkoutPoints ? entry : max).userId
     : null;
 
-  const renderHeader = () => (
-    <View style={[styles.headerRow, { borderBottomColor: isDark ? '#374151' : '#E5E7EB' }]}>
-      <Text style={[styles.headerRank, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>#</Text>
-      <Text style={[styles.headerUsername, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>User</Text>
-      <Text style={[styles.headerStat, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Workouts</Text>
-      <Text style={[styles.headerStat, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Points</Text>
-      <Text style={[styles.headerStat, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Best</Text>
-    </View>
-  );
-
   const renderEntry = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
     const isCurrentUser = item.userId === user?.id;
     const rank = index + 1;
 
+    // Check which trophies this user has
+    const hasTrophies = (item.userId === pointsLeader && item.totalPoints > 0) ||
+                        (item.userId === workoutsLeader && item.totalWorkouts > 0) ||
+                        (item.userId === highscoreLeader && item.bestWorkoutPoints > 0);
+
     return (
       <View
         style={[
-          styles.row,
+          styles.card,
           { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
-          isCurrentUser && styles.currentUserRow,
+          isCurrentUser && styles.currentUserCard,
           isCurrentUser && { backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF' },
         ]}
       >
-        <Text style={[styles.rank, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-          {rank}
-        </Text>
-        <View style={styles.usernameContainer}>
-          <Text
-            style={[
-              styles.username,
-              { color: isDark ? '#F9FAFB' : '#111827' },
-              isCurrentUser && styles.currentUserText,
-            ]}
-            numberOfLines={1}
-          >
-            {item.username}
-          </Text>
-          {isCurrentUser && (
-            <Text style={[styles.youBadge, { color: '#10B981' }]}>(you)</Text>
+        {/* Top row: rank, username, trophies */}
+        <View style={styles.topRow}>
+          <View style={styles.rankBadge}>
+            <Text style={styles.rankText}>{rank}</Text>
+          </View>
+          <View style={styles.nameContainer}>
+            <Text
+              style={[
+                styles.username,
+                { color: isDark ? '#F9FAFB' : '#111827' },
+                isCurrentUser && styles.currentUserText,
+              ]}
+              numberOfLines={1}
+            >
+              {item.username}
+              {isCurrentUser && <Text style={styles.youBadge}> (you)</Text>}
+            </Text>
+          </View>
+          {hasTrophies && (
+            <View style={styles.trophyContainer}>
+              {item.userId === pointsLeader && item.totalPoints > 0 && (
+                <Text style={styles.trophyIcon}>🏆</Text>
+              )}
+            </View>
           )}
         </View>
-        <Text style={[styles.stat, { color: isDark ? '#D1D5DB' : '#374151' }]}>
-          {item.totalWorkouts}
-          {item.userId === workoutsLeader && item.totalWorkouts > 0 && ' 🏆'}
-        </Text>
-        <Text style={[styles.stat, { color: '#10B981', fontWeight: '600' }]}>
-          {item.totalPoints.toLocaleString()}
-          {item.userId === pointsLeader && item.totalPoints > 0 && ' 🏆'}
-        </Text>
-        <Text style={[styles.stat, { color: isDark ? '#D1D5DB' : '#374151' }]}>
-          {item.bestWorkoutPoints.toLocaleString()}
-          {item.userId === highscoreLeader && item.bestWorkoutPoints > 0 && ' 🏆'}
-        </Text>
+
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+              {item.totalWorkouts}
+              {item.userId === workoutsLeader && item.totalWorkouts > 0 && ' 🏆'}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              workouts
+            </Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: '#10B981' }]}>
+              {item.totalPoints.toLocaleString()}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              total pts
+            </Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+              {item.bestWorkoutPoints.toLocaleString()}
+              {item.userId === highscoreLeader && item.bestWorkoutPoints > 0 && ' 🏆'}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              best
+            </Text>
+          </View>
+        </View>
       </View>
     );
   };
@@ -120,12 +143,10 @@ export default function LeaderboardScreen() {
         data={leaderboard}
         renderItem={renderEntry}
         keyExtractor={(item) => item.userId}
-        ListHeaderComponent={leaderboard.length > 0 ? renderHeader : null}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.list}
         onRefresh={loadLeaderboard}
         refreshing={isLoading}
-        stickyHeaderIndices={leaderboard.length > 0 ? [0] : undefined}
       />
     </View>
   );
@@ -140,76 +161,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   list: {
+    padding: 16,
     flexGrow: 1,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+  card: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  headerRank: {
-    width: 32,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  headerUsername: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  headerStat: {
-    width: 70,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    textAlign: 'right',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginHorizontal: 12,
-    marginTop: 8,
-    borderRadius: 12,
-  },
-  currentUserRow: {
+  currentUserCard: {
     borderWidth: 2,
     borderColor: '#10B981',
   },
-  rank: {
-    width: 32,
-    fontSize: 16,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  usernameContainer: {
-    flex: 1,
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginBottom: 12,
+  },
+  rankBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rankText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  nameContainer: {
+    flex: 1,
   },
   username: {
-    fontSize: 15,
-    fontWeight: '500',
-    flexShrink: 1,
+    fontSize: 17,
+    fontWeight: '600',
   },
   currentUserText: {
     fontWeight: '700',
   },
   youBadge: {
-    fontSize: 12,
+    color: '#10B981',
     fontWeight: '600',
   },
-  stat: {
-    width: 70,
-    fontSize: 14,
+  trophyContainer: {
+    marginLeft: 8,
+  },
+  trophyIcon: {
+    fontSize: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
-    textAlign: 'right',
+  },
+  statLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
   },
   emptyContainer: {
     flex: 1,
