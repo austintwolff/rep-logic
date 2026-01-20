@@ -104,8 +104,31 @@ export default function ExercisePicker({
     }
   };
 
-  // Use cached exercises if available
-  const useDatabase = databaseExercises.length > 0;
+  // Combine database exercises with local exercises, removing duplicates
+  const allExercises = useMemo(() => {
+    // Convert local exercises to Exercise format
+    const localAsExercises: Exercise[] = DEFAULT_EXERCISES.map((def) => ({
+      id: `local-${def.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: def.name,
+      description: def.description,
+      exercise_type: def.exerciseType,
+      muscle_group: def.muscleGroup,
+      equipment: def.equipment,
+      is_compound: def.isCompound,
+      created_by: null,
+      is_public: true,
+      created_at: new Date().toISOString(),
+    }));
+
+    // If we have database exercises, merge with local (database takes precedence for duplicates)
+    if (databaseExercises.length > 0) {
+      const dbNames = new Set(databaseExercises.map(e => e.name.toLowerCase()));
+      const uniqueLocal = localAsExercises.filter(e => !dbNames.has(e.name.toLowerCase()));
+      return [...databaseExercises, ...uniqueLocal];
+    }
+
+    return localAsExercises;
+  }, [databaseExercises]);
 
   const filteredExercises = useMemo(() => {
     const matchesMuscleFilter = (muscleGroup: string): boolean => {
@@ -118,58 +141,22 @@ export default function ExercisePicker({
       return muscleGroup === selectedFilter;
     };
 
-    if (useDatabase && databaseExercises.length > 0) {
-      return databaseExercises.filter((exercise) => {
-        const matchesSearch = exercise.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
-        const matchesMuscle = matchesMuscleFilter(exercise.muscle_group);
-        return matchesSearch && matchesMuscle;
-      });
-    }
-
-    // Fallback to local exercises
-    return DEFAULT_EXERCISES.filter((exercise) => {
+    return allExercises.filter((exercise) => {
       const matchesSearch = exercise.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      const matchesMuscle = matchesMuscleFilter(exercise.muscleGroup);
+      const matchesMuscle = matchesMuscleFilter(exercise.muscle_group);
       return matchesSearch && matchesMuscle;
     });
-  }, [searchQuery, selectedFilter, workoutMuscles, useDatabase, databaseExercises]);
+  }, [searchQuery, selectedFilter, workoutMuscles, allExercises]);
 
-  const handleSelectExercise = (exerciseOrDef: Exercise | ExerciseDefinition) => {
-    let exercise: Exercise;
-
-    if ('exercise_type' in exerciseOrDef) {
-      // Already an Exercise from database
-      exercise = exerciseOrDef;
-    } else {
-      // Convert ExerciseDefinition to Exercise type
-      exercise = {
-        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: exerciseOrDef.name,
-        description: exerciseOrDef.description,
-        exercise_type: exerciseOrDef.exerciseType,
-        muscle_group: exerciseOrDef.muscleGroup,
-        equipment: exerciseOrDef.equipment,
-        is_compound: exerciseOrDef.isCompound,
-        created_by: null,
-        is_public: true,
-        created_at: new Date().toISOString(),
-      };
-    }
-
+  const handleSelectExercise = (exercise: Exercise) => {
     onSelectExercise(exercise);
     onClose();
     setSearchQuery('');
   };
 
-  const renderExercise = ({ item }: { item: Exercise | ExerciseDefinition }) => {
-    const name = item.name;
-    const muscleGroup = 'muscle_group' in item ? item.muscle_group : item.muscleGroup;
-    const exerciseType = 'exercise_type' in item ? item.exercise_type : item.exerciseType;
-
+  const renderExercise = ({ item }: { item: Exercise }) => {
     return (
       <TouchableOpacity
         style={[styles.exerciseItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
@@ -177,14 +164,14 @@ export default function ExercisePicker({
       >
         <View style={styles.exerciseInfo}>
           <Text style={[styles.exerciseName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-            {name}
+            {item.name}
           </Text>
           <View style={styles.exerciseMeta}>
             <Text style={[styles.muscleGroup, { color: '#10B981' }]}>
-              {muscleGroup}
+              {item.muscle_group}
             </Text>
             <Text style={[styles.exerciseType, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {exerciseType === 'bodyweight' ? 'Bodyweight' : 'Weighted'}
+              {item.exercise_type === 'bodyweight' ? 'Bodyweight' : 'Weighted'}
             </Text>
           </View>
         </View>
@@ -278,7 +265,7 @@ export default function ExercisePicker({
         {/* Exercise List - show exercises immediately, loading indicator is subtle */}
         <FlatList
           data={filteredExercises}
-          keyExtractor={(item) => 'id' in item && item.id ? item.id : item.name}
+          keyExtractor={(item) => item.id}
           renderItem={renderExercise}
           contentContainerStyle={styles.exerciseList}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
