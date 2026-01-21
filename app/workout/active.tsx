@@ -14,6 +14,7 @@ import { useWorkoutStore, WorkoutExercise } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { saveWorkoutToDatabase } from '@/services/workout.service';
+import { GoalBucket } from '@/lib/points-engine';
 import ExercisePicker from '@/components/workout/ExercisePicker';
 
 // Muscle group icons
@@ -59,7 +60,8 @@ export default function ActiveWorkoutScreen() {
   // Start workout on mount
   useEffect(() => {
     if (!activeWorkout) {
-      startWorkout(params.name || 'Workout');
+      const goal: GoalBucket = goalMode || 'Hypertrophy';
+      startWorkout(params.name || 'Workout', goal);
     }
   }, []);
 
@@ -110,6 +112,7 @@ export default function ActiveWorkoutScreen() {
                 userId: user.id,
                 workoutId: result.workout.id,
                 name: result.workout.name,
+                goal: result.workout.goal,
                 startedAt: result.workout.startedAt,
                 completedAt,
                 durationSeconds: elapsedTime,

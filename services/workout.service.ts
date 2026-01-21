@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase';
 import { WorkoutSet, WorkoutExercise } from '@/stores/workout.store';
 import { Database } from '@/types/database';
 import { WeightUnit, lbsToKg } from '@/stores/settings.store';
+import { GoalBucket, POINTS_CONFIG } from '@/lib/points-engine';
+import { updateGoalBucketPR, awardSetMuscleXp, getRolling7DayMuscleSets } from './baseline.service';
 
 type WorkoutSessionInsert = Database['public']['Tables']['workout_sessions']['Insert'];
 type WorkoutSetInsert = Database['public']['Tables']['workout_sets']['Insert'];
@@ -13,6 +15,7 @@ interface SaveWorkoutParams {
   userId: string;
   workoutId: string;
   name: string;
+  goal: GoalBucket;
   startedAt: Date;
   completedAt: Date;
   durationSeconds: number;
@@ -36,6 +39,7 @@ export async function saveWorkoutToDatabase(
     userId,
     workoutId,
     name,
+    goal,
     startedAt,
     completedAt,
     durationSeconds,
@@ -79,21 +83,24 @@ export async function saveWorkoutToDatabase(
       return { success: false, error: sessionError.message };
     }
 
-    // 2. Create all workout sets
+    // 2. Create all workout sets (skip local exercises that don't have valid UUIDs)
     const sessionId = (session as any).id;
-    const allSets: WorkoutSetInsert[] = exercises.flatMap((exercise) =>
-      exercise.sets.map((set) => ({
-        workout_session_id: sessionId,
-        exercise_id: exercise.exercise.id,
-        set_number: set.setNumber,
-        set_type: set.setType,
-        weight_kg: toKg(set.weight), // Convert display units to kg for storage
-        reps: set.reps,
-        is_bodyweight: set.isBodyweight,
-        points_earned: set.pointsEarned,
-        completed_at: set.completedAt.toISOString(),
-      }))
-    );
+    const allSets: WorkoutSetInsert[] = exercises
+      .filter((exercise) => !exercise.exercise.id.startsWith('local-')) // Skip local exercises
+      .flatMap((exercise) =>
+        exercise.sets.map((set) => ({
+          workout_session_id: sessionId,
+          exercise_id: exercise.exercise.id,
+          set_number: set.setNumber,
+          set_type: set.setType,
+          weight_kg: toKg(set.weight), // Convert display units to kg for storage
+          reps: set.reps,
+          is_bodyweight: set.isBodyweight,
+          points_earned: set.pointsEarned,
+          is_pr: set.isPR,
+          completed_at: set.completedAt.toISOString(),
+        }))
+      );
 
     if (allSets.length > 0) {
       const { error: setsError } = await supabase
@@ -103,6 +110,46 @@ export async function saveWorkoutToDatabase(
       if (setsError) {
         console.error('Error creating workout sets:', setsError);
         // Don't fail the whole operation, the session is saved
+      }
+    }
+
+    // 2b. Update goal-bucket PRs for any sets that achieved a PR
+    for (const exercise of exercises) {
+      if (exercise.exercise.id.startsWith('local-')) continue; // Skip local exercises
+
+      for (const set of exercise.sets) {
+        if (set.isPR && set.weight !== null) {
+          // Convert weight to kg for baseline storage
+          const weightKg = toKg(set.weight) || 0;
+          // For bodyweight exercises, use effective weight
+          const effectiveWeight = set.isBodyweight
+            ? weightKg * POINTS_CONFIG.BODYWEIGHT_FACTOR
+            : weightKg;
+
+          await updateGoalBucketPR(userId, exercise.exercise.id, effectiveWeight, set.reps, goal);
+        }
+      }
+    }
+
+    // 2c. Award muscle XP for each set (includes warmup sets)
+    // Get rolling 7-day counts once for efficiency
+    const rolling7DayCounts = await getRolling7DayMuscleSets(userId);
+
+    for (const exercise of exercises) {
+      for (const set of exercise.sets) {
+        await awardSetMuscleXp(
+          userId,
+          exercise.exercise.name,
+          exercise.exercise.muscle_group,
+          set.isPR,
+          rolling7DayCounts
+        );
+
+        // Update rolling counts for subsequent sets in this workout
+        // This ensures diminishing returns apply within the same workout
+        const muscleKey = exercise.exercise.muscle_group.toLowerCase();
+        const currentCount = rolling7DayCounts.get(muscleKey) || 0;
+        rolling7DayCounts.set(muscleKey, currentCount + 1);
       }
     }
 
@@ -436,10 +483,24 @@ export async function deleteWorkout(workoutId: string, userId: string): Promise<
       .single() as { data: any };
 
     if (currentStats) {
+      // Check if the workout was completed within the current week
+      const workoutCompletedAt = new Date(workout.completed_at);
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setHours(0, 0, 0, 0);
+      // Set to Sunday of current week (adjust based on locale if needed)
+      startOfWeek.setDate(now.getDate() - now.getDay());
+
+      const workoutInCurrentWeek = workoutCompletedAt >= startOfWeek;
+
       const statsUpdate: UserStatsUpdate = {
         total_points: Math.max(0, (currentStats.total_points || 0) - (workout.total_points || 0)),
         total_workouts: Math.max(0, (currentStats.total_workouts || 0) - 1),
         total_volume_kg: Math.max(0, (currentStats.total_volume_kg || 0) - (workout.total_volume_kg || 0)),
+        // Only subtract from weekly_points if the workout was in the current week
+        ...(workoutInCurrentWeek && {
+          weekly_points: Math.max(0, (currentStats.weekly_points || 0) - (workout.total_points || 0)),
+        }),
       };
 
       await (supabase.from('user_stats') as any)

@@ -10,10 +10,16 @@ import {
   updateRollingAverage,
   getWeekStart,
   formatDateAsISO,
-  calculateLevelFromXp,
   POINTS_CONFIG,
   ExerciseBaselineData,
+  GoalBucket,
+  isInGoalRepRange,
 } from '@/lib/points-engine';
+import {
+  calculateMuscleLevelFromXp,
+  MUSCLE_XP_CONFIG,
+  MuscleTag,
+} from '@/lib/muscle-xp';
 
 // Type assertion helper for new tables not yet in generated types
 const db = supabase as any;
@@ -50,6 +56,9 @@ export async function getOrCreateBaseline(
       workout_count: 0,
       is_baselined: false,
       best_e1rm: 0,
+      best_e1rm_strength: 0,
+      best_e1rm_hypertrophy: 0,
+      best_e1rm_endurance: 0,
     })
     .select()
     .single();
@@ -84,6 +93,9 @@ export async function getUserBaselines(userId: string): Promise<Map<string, Exer
       rollingAvgE1rm: baseline.rolling_avg_e1rm,
       sessionHistory: baseline.session_history as BaselineSessionEntry[],
       bestE1rm: baseline.best_e1rm,
+      bestE1rmStrength: baseline.best_e1rm_strength || 0,
+      bestE1rmHypertrophy: baseline.best_e1rm_hypertrophy || 0,
+      bestE1rmEndurance: baseline.best_e1rm_endurance || 0,
     });
   }
 
@@ -138,6 +150,59 @@ export async function updateBaselineAfterWorkout(
 
   if (error) {
     console.error('Error updating baseline:', error);
+  }
+}
+
+/**
+ * Update the goal-bucket-specific best e1RM after a PR is set
+ */
+export async function updateGoalBucketPR(
+  userId: string,
+  exerciseId: string,
+  weight: number,
+  reps: number,
+  goal: GoalBucket
+): Promise<void> {
+  // Only update if the set is in the goal's rep range
+  if (!isInGoalRepRange(reps, goal)) return;
+
+  const baseline = await getOrCreateBaseline(userId, exerciseId);
+  if (!baseline) return;
+
+  const currentE1rm = calculateOneRepMax(weight, reps);
+
+  // Get current best for this goal bucket
+  let currentBest: number;
+  let fieldName: string;
+
+  switch (goal) {
+    case 'Strength':
+      currentBest = baseline.best_e1rm_strength || 0;
+      fieldName = 'best_e1rm_strength';
+      break;
+    case 'Hypertrophy':
+      currentBest = baseline.best_e1rm_hypertrophy || 0;
+      fieldName = 'best_e1rm_hypertrophy';
+      break;
+    case 'Endurance':
+      currentBest = baseline.best_e1rm_endurance || 0;
+      fieldName = 'best_e1rm_endurance';
+      break;
+  }
+
+  // Only update if this is a new PR for this goal bucket
+  if (currentE1rm <= currentBest) return;
+
+  const { error } = await db
+    .from('exercise_baselines')
+    .update({
+      [fieldName]: currentE1rm,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', baseline.id);
+
+  if (error) {
+    console.error('Error updating goal bucket PR:', error);
   }
 }
 
@@ -199,7 +264,7 @@ export async function getUserMuscleLevels(userId: string): Promise<MuscleLevel[]
 }
 
 /**
- * Add XP to a muscle group
+ * Add XP to a muscle group (uses new level 1-25 curve)
  */
 export async function addMuscleXp(
   userId: string,
@@ -212,13 +277,16 @@ export async function addMuscleXp(
   }
 
   const newTotalXp = muscleLevel.total_xp_earned + xpAmount;
-  const { level: newLevel, currentXp } = calculateLevelFromXp(newTotalXp);
-  const leveledUp = newLevel > muscleLevel.current_level;
+  const { level: newLevel, currentXp } = calculateMuscleLevelFromXp(newTotalXp);
+
+  // Cap at max level
+  const cappedLevel = Math.min(newLevel, MUSCLE_XP_CONFIG.MAX_LEVEL);
+  const leveledUp = cappedLevel > muscleLevel.current_level;
 
   const { error } = await db
     .from('muscle_levels')
     .update({
-      current_level: newLevel,
+      current_level: cappedLevel,
       current_xp: currentXp,
       total_xp_earned: newTotalXp,
       last_trained_at: new Date().toISOString(),
@@ -230,7 +298,7 @@ export async function addMuscleXp(
     console.error('Error updating muscle XP:', error);
   }
 
-  return { newLevel, leveledUp };
+  return { newLevel: cappedLevel, leveledUp };
 }
 
 // ============================================================================
@@ -406,4 +474,173 @@ export async function getBaselineStatus(userId: string): Promise<{
     completed,
     inProgress,
   };
+}
+
+// ============================================================================
+// MUSCLE XP SYSTEM
+// ============================================================================
+
+/**
+ * Get muscle groups with order for an exercise (for XP split calculation)
+ * Returns muscles sorted by order (1=primary, 2=secondary, 3=tertiary)
+ */
+export async function getExerciseMusclesWithOrder(
+  exerciseName: string
+): Promise<MuscleTag[]> {
+  const { data, error } = await db
+    .from('exercise_muscle_map')
+    .select('muscle_group, muscle_order')
+    .eq('exercise_name', exerciseName)
+    .order('muscle_order', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return [];
+  }
+
+  return data.map((row: any) => ({
+    muscleGroup: row.muscle_group,
+    order: row.muscle_order || 1,
+  }));
+}
+
+/**
+ * Get rolling 7-day set counts per muscle for a user
+ * Used for diminishing returns calculation
+ */
+export async function getRolling7DayMuscleSets(
+  userId: string
+): Promise<Map<string, number>> {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  // Query workout sets from last 7 days, join with sessions to filter by user
+  const { data: sets, error } = await db
+    .from('workout_sets')
+    .select(`
+      exercise_id,
+      workout_session:workout_sessions!inner(user_id)
+    `)
+    .eq('workout_session.user_id', userId)
+    .gte('completed_at', sevenDaysAgo.toISOString());
+
+  if (error || !sets) {
+    console.error('Error fetching rolling 7-day sets:', error);
+    return new Map();
+  }
+
+  // Get exercise IDs to look up their muscles
+  const exerciseIds = [...new Set(sets.map((s: any) => s.exercise_id))];
+
+  if (exerciseIds.length === 0) {
+    return new Map();
+  }
+
+  // Get exercise details to map exercise -> primary muscle
+  const { data: exercises } = await db
+    .from('exercises')
+    .select('id, name, muscle_group')
+    .in('id', exerciseIds);
+
+  if (!exercises) {
+    return new Map();
+  }
+
+  // Create exercise ID -> name map
+  const exerciseNameMap = new Map<string, string>();
+  const exercisePrimaryMuscleMap = new Map<string, string>();
+  for (const ex of exercises) {
+    exerciseNameMap.set(ex.id, ex.name);
+    exercisePrimaryMuscleMap.set(ex.id, ex.muscle_group);
+  }
+
+  // Get muscle mappings for all exercise names
+  const exerciseNames = [...new Set(exercises.map((e: any) => e.name))];
+  const { data: muscleMappings } = await db
+    .from('exercise_muscle_map')
+    .select('exercise_name, muscle_group')
+    .in('exercise_name', exerciseNames);
+
+  // Build exercise name -> muscles map
+  const exerciseMusclesMap = new Map<string, string[]>();
+  if (muscleMappings) {
+    for (const mapping of muscleMappings) {
+      const existing = exerciseMusclesMap.get(mapping.exercise_name) || [];
+      existing.push(mapping.muscle_group.toLowerCase());
+      exerciseMusclesMap.set(mapping.exercise_name, existing);
+    }
+  }
+
+  // Count sets per muscle
+  const muscleCounts = new Map<string, number>();
+
+  for (const set of sets) {
+    const exerciseName = exerciseNameMap.get(set.exercise_id);
+    const primaryMuscle = exercisePrimaryMuscleMap.get(set.exercise_id);
+
+    // Get muscles this exercise works
+    let muscles: string[] = [];
+    if (exerciseName) {
+      muscles = exerciseMusclesMap.get(exerciseName) || [];
+    }
+
+    // Fallback to primary muscle if no mapping
+    if (muscles.length === 0 && primaryMuscle) {
+      muscles = [primaryMuscle.toLowerCase()];
+    }
+
+    // Increment count for each muscle
+    for (const muscle of muscles) {
+      const current = muscleCounts.get(muscle) || 0;
+      muscleCounts.set(muscle, current + 1);
+    }
+  }
+
+  return muscleCounts;
+}
+
+/**
+ * Award muscle XP for a completed set
+ * Handles the full flow: get muscles, calculate XP with diminishing returns, award XP
+ */
+export async function awardSetMuscleXp(
+  userId: string,
+  exerciseName: string,
+  primaryMuscle: string,
+  isPR: boolean,
+  rolling7DayCounts?: Map<string, number>
+): Promise<{ muscleGroup: string; xpAwarded: number; newLevel: number; leveledUp: boolean }[]> {
+  // Import the calculation function
+  const { calculateSetMuscleXp, createMuscleTags } = await import('@/lib/muscle-xp');
+
+  // Get muscles for this exercise with order
+  const exerciseMuscles = await getExerciseMusclesWithOrder(exerciseName);
+
+  // Create muscle tags (falls back to primary if no mapping)
+  const muscleTags = createMuscleTags(
+    exerciseMuscles.map(m => ({ muscleGroup: m.muscleGroup, order: m.order })),
+    primaryMuscle
+  );
+
+  // Get rolling 7-day counts if not provided
+  const counts = rolling7DayCounts || await getRolling7DayMuscleSets(userId);
+
+  // Calculate XP for each muscle
+  const xpResults = calculateSetMuscleXp(muscleTags, counts, isPR);
+
+  // Award XP to each muscle
+  const results: { muscleGroup: string; xpAwarded: number; newLevel: number; leveledUp: boolean }[] = [];
+
+  for (const result of xpResults) {
+    if (result.finalXp > 0) {
+      const { newLevel, leveledUp } = await addMuscleXp(userId, result.muscleGroup, result.finalXp);
+      results.push({
+        muscleGroup: result.muscleGroup,
+        xpAwarded: result.finalXp,
+        newLevel,
+        leveledUp,
+      });
+    }
+  }
+
+  return results;
 }

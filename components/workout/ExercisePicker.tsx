@@ -107,18 +107,22 @@ export default function ExercisePicker({
   // Combine database exercises with local exercises, removing duplicates
   const allExercises = useMemo(() => {
     // Convert local exercises to Exercise format
-    const localAsExercises: Exercise[] = DEFAULT_EXERCISES.map((def) => ({
-      id: `local-${def.name.toLowerCase().replace(/\s+/g, '-')}`,
-      name: def.name,
-      description: def.description,
-      exercise_type: def.exerciseType,
-      muscle_group: def.muscleGroup,
-      equipment: def.equipment,
-      is_compound: def.isCompound,
-      created_by: null,
-      is_public: true,
-      created_at: new Date().toISOString(),
-    }));
+    const localAsExercises: Exercise[] = DEFAULT_EXERCISES.map((def) => {
+      // Include equipment in ID to make exercises with same name unique
+      const equipmentSuffix = def.equipment.length > 0 ? `-${def.equipment[0]}` : '-bodyweight';
+      return {
+        id: `local-${def.name.toLowerCase().replace(/\s+/g, '-')}${equipmentSuffix}`,
+        name: def.name,
+        description: def.description,
+        exercise_type: def.exerciseType,
+        muscle_group: def.muscleGroup,
+        equipment: def.equipment,
+        is_compound: def.isCompound,
+        created_by: null,
+        is_public: true,
+        created_at: new Date().toISOString(),
+      };
+    });
 
     // If we have database exercises, merge with local (database takes precedence for duplicates)
     let combined: Exercise[];
@@ -161,6 +165,11 @@ export default function ExercisePicker({
   };
 
   const renderExercise = ({ item }: { item: Exercise }) => {
+    // Format equipment for display
+    const equipmentLabel = item.equipment && item.equipment.length > 0
+      ? item.equipment.map(e => e.charAt(0).toUpperCase() + e.slice(1)).join(', ')
+      : 'Bodyweight';
+
     return (
       <TouchableOpacity
         style={[styles.exerciseItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
@@ -174,8 +183,8 @@ export default function ExercisePicker({
             <Text style={[styles.muscleGroup, { color: '#10B981' }]}>
               {item.muscle_group}
             </Text>
-            <Text style={[styles.exerciseType, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {item.exercise_type === 'bodyweight' ? 'Bodyweight' : 'Weighted'}
+            <Text style={[styles.equipmentLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              {equipmentLabel}
             </Text>
           </View>
         </View>
@@ -394,7 +403,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  exerciseType: {
+  equipmentLabel: {
     fontSize: 13,
   },
   addIcon: {

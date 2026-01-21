@@ -7,6 +7,8 @@ import {
   WorkoutCompletionResult,
   MusclePointsBreakdown,
   POINTS_CONFIG,
+  GoalBucket,
+  GOAL_REP_RANGES,
 } from './types';
 
 // ============================================================================
@@ -20,6 +22,78 @@ export function calculateOneRepMax(weight: number, reps: number): number {
   if (reps === 0 || weight === 0) return 0;
   if (reps === 1) return weight;
   return weight * (1 + reps / 30);
+}
+
+// ============================================================================
+// PR DETECTION
+// ============================================================================
+
+/**
+ * Check if reps fall within a goal bucket's rep range
+ */
+export function isInGoalRepRange(reps: number, goal: GoalBucket): boolean {
+  const range = GOAL_REP_RANGES[goal];
+  return reps >= range.min && reps <= range.max;
+}
+
+/**
+ * Get the best e1RM for a specific goal bucket from baseline data
+ */
+export function getBestE1rmForGoal(
+  baseline: ExerciseBaselineData | null,
+  goal: GoalBucket
+): number {
+  if (!baseline) return 0;
+
+  switch (goal) {
+    case 'Strength':
+      return baseline.bestE1rmStrength;
+    case 'Hypertrophy':
+      return baseline.bestE1rmHypertrophy;
+    case 'Endurance':
+      return baseline.bestE1rmEndurance;
+    default:
+      return 0;
+  }
+}
+
+export interface PRCheckResult {
+  isPR: boolean;
+  currentE1rm: number;
+  previousBestE1rm: number;
+  improvementPercent: number;
+}
+
+/**
+ * Check if a set is a PR within the workout's goal bucket.
+ * A PR is achieved when the set's e1RM beats the previous best e1RM
+ * recorded within that goal's rep range.
+ */
+export function checkForPR(
+  weight: number,
+  reps: number,
+  goal: GoalBucket,
+  baseline: ExerciseBaselineData | null
+): PRCheckResult {
+  const currentE1rm = calculateOneRepMax(weight, reps);
+  const previousBestE1rm = getBestE1rmForGoal(baseline, goal);
+
+  // Must be within the goal's rep range to count as a PR for that goal
+  const inRange = isInGoalRepRange(reps, goal);
+
+  // PR if: in range AND beats previous best (or no previous best exists and we have a valid set)
+  const isPR = inRange && currentE1rm > previousBestE1rm && currentE1rm > 0;
+
+  const improvementPercent = previousBestE1rm > 0
+    ? ((currentE1rm - previousBestE1rm) / previousBestE1rm) * 100
+    : 0;
+
+  return {
+    isPR,
+    currentE1rm,
+    previousBestE1rm,
+    improvementPercent,
+  };
 }
 
 /**

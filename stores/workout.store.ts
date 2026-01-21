@@ -7,6 +7,8 @@ import {
   PointsResult,
   ExerciseBaselineData,
   POINTS_CONFIG,
+  GoalBucket,
+  checkForPR,
 } from '@/lib/points-engine';
 
 export interface WorkoutSet {
@@ -19,6 +21,7 @@ export interface WorkoutSet {
   reps: number;
   isBodyweight: boolean;
   pointsEarned: number;
+  isPR: boolean;
   completedAt: Date;
   muscleGroups: string[]; // All muscles this set worked
 }
@@ -27,11 +30,13 @@ export interface WorkoutExercise {
   id: string;
   exercise: Exercise;
   sets: WorkoutSet[];
+  isCompleted: boolean; // Marked when user finishes and returns to deck
 }
 
 interface ActiveWorkout {
   id: string;
   name: string;
+  goal: GoalBucket;
   startedAt: Date;
   exercises: WorkoutExercise[];
   totalPoints: number;
@@ -48,13 +53,14 @@ interface WorkoutState {
   exerciseBaselines: Map<string, ExerciseBaselineData>; // Loaded baselines
 
   // Actions
-  startWorkout: (name: string) => void;
+  startWorkout: (name: string, goal: GoalBucket) => void;
   endWorkout: () => { workout: ActiveWorkout; completionBonus: number } | null;
   cancelWorkout: () => void;
 
   addExercise: (exercise: Exercise) => void;
   removeExercise: (exerciseId: string) => void;
   setCurrentExercise: (index: number) => void;
+  markExerciseCompleted: (exerciseId: string) => void;
 
   setExerciseBaselines: (baselines: Map<string, ExerciseBaselineData>) => void;
 
@@ -81,11 +87,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   lastPointsResult: null,
   exerciseBaselines: new Map(),
 
-  startWorkout: (name: string) => {
+  startWorkout: (name: string, goal: GoalBucket) => {
     set({
       activeWorkout: {
         id: uuidv4(),
         name,
+        goal,
         startedAt: new Date(),
         exercises: [],
         totalPoints: 0,
@@ -152,6 +159,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       id: uuidv4(),
       exercise,
       sets: [],
+      isCompleted: false,
     };
 
     set({
@@ -185,6 +193,25 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
   setCurrentExercise: (index: number) => {
     set({ currentExerciseIndex: index });
+  },
+
+  markExerciseCompleted: (exerciseId: string) => {
+    const { activeWorkout } = get();
+    if (!activeWorkout) return;
+
+    const updatedExercises = activeWorkout.exercises.map((ex) => {
+      if (ex.id === exerciseId) {
+        return { ...ex, isCompleted: true };
+      }
+      return ex;
+    });
+
+    set({
+      activeWorkout: {
+        ...activeWorkout,
+        exercises: updatedExercises,
+      },
+    });
   },
 
   setExerciseBaselines: (baselines: Map<string, ExerciseBaselineData>) => {
@@ -232,6 +259,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       params.currentStreak
     );
 
+    // Check for PR within the workout's goal bucket
+    const effectiveWeight = isBodyweight
+      ? params.userBodyweight * POINTS_CONFIG.BODYWEIGHT_FACTOR
+      : (params.weight || 0);
+    const prResult = checkForPR(effectiveWeight, params.reps, activeWorkout.goal, baseline);
+
     const newSet: WorkoutSet = {
       id: uuidv4(),
       exerciseId: exercise.id,
@@ -242,6 +275,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       reps: params.reps,
       isBodyweight,
       pointsEarned: pointsResult.finalPoints,
+      isPR: prResult.isPR,
       completedAt: new Date(),
       muscleGroups,
     };

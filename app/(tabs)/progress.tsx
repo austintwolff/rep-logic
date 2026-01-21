@@ -3,7 +3,12 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native
 import { useAuthStore } from '@/stores/auth.store';
 import { useColorScheme } from '@/components/useColorScheme';
 import { getUserMuscleLevels } from '@/services/baseline.service';
-import { xpForLevel } from '@/lib/points-engine';
+import {
+  xpForMuscleLevel,
+  MUSCLE_XP_CONFIG,
+  calculateMuscleDecay,
+  DecayStatus,
+} from '@/lib/muscle-xp';
 import { MuscleLevel } from '@/types/database';
 
 // All muscle groups we track (granular)
@@ -87,26 +92,43 @@ export default function ProgressScreen() {
   };
 
   // Create a complete list with all muscle groups, filling in zeros for missing ones
+  // Apply decay based on last_trained_at
   const getMuscleData = (muscleGroup: string) => {
     const found = muscleLevels.find(
       m => m.muscle_group.toLowerCase() === muscleGroup.toLowerCase()
     );
+
+    const storedLevel = found?.current_level || 0;
+    const storedXp = found?.current_xp || 0;
+    const lastTrainedAt = found?.last_trained_at || null;
+
+    // Calculate XP progress as percentage (0-1)
+    const xpNeeded = storedLevel >= MUSCLE_XP_CONFIG.MAX_LEVEL
+      ? 0
+      : xpForMuscleLevel(storedLevel + 1);
+    const storedProgress = xpNeeded > 0 ? storedXp / xpNeeded : 0;
+
+    // Apply decay
+    const decay = calculateMuscleDecay(storedLevel, storedProgress, lastTrainedAt);
+
     return {
       muscle_group: muscleGroup,
-      current_level: found?.current_level || 0,
-      current_xp: found?.current_xp || 0,
-      total_xp_earned: found?.total_xp_earned || 0,
-      last_trained_at: found?.last_trained_at || null,
+      effectiveLevel: decay.effectiveLevel,
+      effectiveProgress: decay.effectiveProgress,
+      decayStatus: decay.decayStatus,
+      levelsLost: decay.levelsLost,
+      daysSinceTraining: decay.daysSinceTraining,
+      lastTrainedAt,
     };
   };
 
-  // Get all muscles sorted by level (highest first)
+  // Get all muscles sorted by effective level (highest first)
   const sortedMuscles = ALL_MUSCLE_GROUPS
     .map(getMuscleData)
-    .sort((a, b) => b.current_level - a.current_level || b.current_xp - a.current_xp);
+    .sort((a, b) => b.effectiveLevel - a.effectiveLevel || b.effectiveProgress - a.effectiveProgress);
 
-  // Calculate total level
-  const totalLevel = sortedMuscles.reduce((sum, m) => sum + m.current_level, 0);
+  // Calculate total level using effective (decayed) levels
+  const totalLevel = sortedMuscles.reduce((sum, m) => sum + m.effectiveLevel, 0);
 
   return (
     <ScrollView
@@ -136,8 +158,9 @@ export default function ProgressScreen() {
       {/* Muscle Cards */}
       <View style={styles.muscleList}>
         {sortedMuscles.map((muscle) => {
-          const xpNeeded = xpForLevel(muscle.current_level + 1);
-          const progress = xpNeeded > 0 ? Math.min(100, (muscle.current_xp / xpNeeded) * 100) : 0;
+          const isMaxLevel = muscle.effectiveLevel >= MUSCLE_XP_CONFIG.MAX_LEVEL;
+          const progress = isMaxLevel ? 100 : Math.min(100, muscle.effectiveProgress * 100);
+          const isDecaying = muscle.decayStatus === 'decaying' || muscle.decayStatus === 'resting';
 
           return (
             <View
@@ -149,12 +172,27 @@ export default function ProgressScreen() {
                   <Text style={styles.muscleIcon}>
                     {MUSCLE_ICONS[muscle.muscle_group] || '💪'}
                   </Text>
-                  <Text style={[styles.muscleName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-                    {MUSCLE_DISPLAY_NAMES[muscle.muscle_group] || muscle.muscle_group}
-                  </Text>
+                  <View>
+                    <Text style={[styles.muscleName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+                      {MUSCLE_DISPLAY_NAMES[muscle.muscle_group] || muscle.muscle_group}
+                    </Text>
+                    {isDecaying && (
+                      <Text style={[styles.decayHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                        {muscle.decayStatus === 'decaying'
+                          ? `Resting · ${muscle.levelsLost} level${muscle.levelsLost > 1 ? 's' : ''} to recover`
+                          : 'Resting'}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>Lv.{muscle.current_level}</Text>
+                <View style={[
+                  styles.levelBadge,
+                  isMaxLevel && styles.levelBadgeMax,
+                  isDecaying && !isMaxLevel && styles.levelBadgeResting,
+                ]}>
+                  <Text style={styles.levelText}>
+                    {isMaxLevel ? 'MAX' : `Lv.${muscle.effectiveLevel}`}
+                  </Text>
                 </View>
               </View>
 
@@ -164,13 +202,12 @@ export default function ProgressScreen() {
                     style={[
                       styles.progressFill,
                       { width: `${progress}%` },
-                      muscle.current_level === 0 && progress === 0 && styles.progressEmpty,
+                      muscle.effectiveLevel === 0 && progress === 0 && styles.progressEmpty,
+                      isMaxLevel && styles.progressFillMax,
+                      isDecaying && !isMaxLevel && styles.progressFillResting,
                     ]}
                   />
                 </View>
-                <Text style={[styles.xpText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {muscle.current_xp} / {xpNeeded} XP
-                </Text>
               </View>
             </View>
           );
@@ -178,7 +215,7 @@ export default function ProgressScreen() {
       </View>
 
       {/* Empty State */}
-      {sortedMuscles.every(m => m.current_level === 0 && m.current_xp === 0) && (
+      {sortedMuscles.every(m => m.effectiveLevel === 0 && m.effectiveProgress === 0) && (
         <View style={styles.emptyState}>
           <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
             Complete workouts to level up your muscles!
@@ -250,11 +287,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  decayHint: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   levelBadge: {
     backgroundColor: '#10B981',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
+  },
+  levelBadgeMax: {
+    backgroundColor: '#F59E0B',
+  },
+  levelBadgeResting: {
+    backgroundColor: '#6B7280',
   },
   levelText: {
     color: '#FFFFFF',
@@ -263,7 +310,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   progressContainer: {
-    gap: 6,
+    marginTop: 8,
   },
   progressBg: {
     height: 8,
@@ -275,14 +322,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
     borderRadius: 4,
   },
+  progressFillMax: {
+    backgroundColor: '#F59E0B',
+  },
+  progressFillResting: {
+    backgroundColor: '#6B7280',
+  },
   progressEmpty: {
     backgroundColor: 'transparent',
-  },
-  xpText: {
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
   },
   emptyState: {
     alignItems: 'center',

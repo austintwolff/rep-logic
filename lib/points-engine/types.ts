@@ -1,6 +1,18 @@
 import { BaselineSessionEntry } from '@/types/database';
 
 // ============================================================================
+// GOAL BUCKETS
+// ============================================================================
+
+export type GoalBucket = 'Strength' | 'Hypertrophy' | 'Endurance';
+
+export const GOAL_REP_RANGES: Record<GoalBucket, { min: number; max: number }> = {
+  Strength: { min: 1, max: 6 },
+  Hypertrophy: { min: 6, max: 12 },
+  Endurance: { min: 12, max: Infinity },
+};
+
+// ============================================================================
 // CORE INPUT TYPES
 // ============================================================================
 
@@ -23,6 +35,9 @@ export interface ExerciseBaselineData {
   rollingAvgE1rm: number;
   sessionHistory: BaselineSessionEntry[];
   bestE1rm: number;
+  bestE1rmStrength: number;
+  bestE1rmHypertrophy: number;
+  bestE1rmEndurance: number;
 }
 
 export interface MuscleGroupContext {

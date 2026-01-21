@@ -136,26 +136,21 @@ export default function ExerciseDetailScreen() {
     setAnimatingSetInfo(null);
   };
 
-  const handleAdjustRestTime = (seconds: number) => {
-    const newTime = Math.max(0, restTimeRemaining + seconds);
-    if (newTime === 0) {
-      stopRestTimer();
-    } else {
-      startRestTimer(newTime);
-    }
-  };
-
   if (!activeWorkout || !currentExercise) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={[styles.backIcon, { color: isDark ? '#F9FAFB' : '#111827' }]}>←</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButton} />
           <Text style={[styles.headerTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
             Exercise
           </Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.headerButton}
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.checkIcon}>✓</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
@@ -173,8 +168,12 @@ export default function ExerciseDetailScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={[styles.backIcon, { color: isDark ? '#F9FAFB' : '#111827' }]}>←</Text>
+        <TouchableOpacity
+          onPress={handleRemoveExercise}
+          style={styles.headerButton}
+          accessibilityLabel="Remove exercise"
+        >
+          <Text style={styles.trashIcon}>🗑</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: isDark ? '#F9FAFB' : '#111827' }]} numberOfLines={1}>
@@ -184,8 +183,12 @@ export default function ExerciseDetailScreen() {
             {currentExercise.exercise.muscle_group}
           </Text>
         </View>
-        <TouchableOpacity onPress={handleRemoveExercise} style={styles.deleteButton}>
-          <Text style={styles.deleteIcon}>🗑</Text>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.headerButton}
+          accessibilityLabel="Complete exercise"
+        >
+          <Text style={styles.checkIcon}>✓</Text>
         </TouchableOpacity>
       </View>
 
@@ -194,7 +197,6 @@ export default function ExerciseDetailScreen() {
         timeRemaining={restTimeRemaining}
         isActive={isRestTimerActive}
         onStop={stopRestTimer}
-        onAdjust={handleAdjustRestTime}
         isDark={isDark}
       />
 
@@ -309,13 +311,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(55, 65, 81, 0.3)',
   },
-  backButton: {
+  headerButton: {
     padding: 8,
     width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backIcon: {
+  trashIcon: {
+    fontSize: 20,
+  },
+  checkIcon: {
     fontSize: 24,
-    fontWeight: '300',
+    fontWeight: '700',
+    color: '#10B981',
   },
   headerCenter: {
     flex: 1,
@@ -328,17 +337,6 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 13,
     marginTop: 2,
-  },
-  deleteButton: {
-    padding: 8,
-    width: 44,
-    alignItems: 'center',
-  },
-  deleteIcon: {
-    fontSize: 18,
-  },
-  placeholder: {
-    width: 44,
   },
   content: {
     flex: 1,

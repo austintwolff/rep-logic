@@ -42,8 +42,8 @@ export default function NewWorkoutScreen() {
     if (!canStart) return;
 
     const workoutName = selectedType === 'Full Body' ? 'Full Body' : `${selectedType} Day`;
-    router.push(
-      `/workout/active?name=${encodeURIComponent(workoutName)}&goal=${encodeURIComponent(selectedGoal!)}`
+    router.replace(
+      `/workout/deck?name=${encodeURIComponent(workoutName)}&goal=${encodeURIComponent(selectedGoal!)}`
     );
   };
 

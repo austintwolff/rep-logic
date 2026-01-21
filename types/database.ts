@@ -163,6 +163,7 @@ export interface Database {
           rpe: number | null;
           is_bodyweight: boolean;
           points_earned: number;
+          is_pr: boolean;
           completed_at: string;
           created_at: string;
         };
@@ -177,6 +178,7 @@ export interface Database {
           rpe?: number | null;
           is_bodyweight?: boolean;
           points_earned?: number;
+          is_pr?: boolean;
           completed_at?: string;
           created_at?: string;
         };
@@ -187,6 +189,7 @@ export interface Database {
           reps?: number;
           rpe?: number | null;
           points_earned?: number;
+          is_pr?: boolean;
         };
       };
       point_transactions: {
@@ -227,6 +230,9 @@ export interface Database {
           is_baselined: boolean;
           best_e1rm: number;
           best_e1rm_date: string | null;
+          best_e1rm_strength: number;
+          best_e1rm_hypertrophy: number;
+          best_e1rm_endurance: number;
           created_at: string;
           updated_at: string;
         };
@@ -240,6 +246,9 @@ export interface Database {
           is_baselined?: boolean;
           best_e1rm?: number;
           best_e1rm_date?: string | null;
+          best_e1rm_strength?: number;
+          best_e1rm_hypertrophy?: number;
+          best_e1rm_endurance?: number;
         };
         Update: {
           rolling_avg_e1rm?: number;
@@ -248,6 +257,9 @@ export interface Database {
           is_baselined?: boolean;
           best_e1rm?: number;
           best_e1rm_date?: string | null;
+          best_e1rm_strength?: number;
+          best_e1rm_hypertrophy?: number;
+          best_e1rm_endurance?: number;
           updated_at?: string;
         };
       };
@@ -321,6 +333,7 @@ export interface Database {
           muscle_group: string;
           contribution_percentage: number;
           is_primary: boolean;
+          muscle_order: number;
         };
         Insert: {
           id?: string;
@@ -328,10 +341,12 @@ export interface Database {
           muscle_group: string;
           contribution_percentage?: number;
           is_primary?: boolean;
+          muscle_order?: number;
         };
         Update: {
           contribution_percentage?: number;
           is_primary?: boolean;
+          muscle_order?: number;
         };
       };
     };

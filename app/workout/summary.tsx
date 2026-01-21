@@ -67,12 +67,8 @@ export default function WorkoutSummaryScreen() {
   };
 
   const handleDone = () => {
-    // Dismiss the modal stack and go back to tabs
-    if (router.canDismiss()) {
-      router.dismissAll();
-    } else {
-      router.replace('/(tabs)');
-    }
+    // Dismiss the workout modal and go back to tabs
+    router.dismissAll();
   };
 
   return (
