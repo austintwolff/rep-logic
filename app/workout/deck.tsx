@@ -22,6 +22,7 @@ import { fetchExercisesFromDatabase, saveWorkoutToDatabase } from '@/services/wo
 import { DEFAULT_EXERCISES } from '@/constants/exercises';
 import { MuscleLevelBadge } from '@/components/workout/MuscleLevelBadge';
 import ExercisePicker from '@/components/workout/ExercisePicker';
+import { CharmRipReveal } from '@/components/workout/CharmRipReveal';
 import { Exercise, MuscleLevel } from '@/types/database';
 import { GoalBucket } from '@/lib/points-engine';
 import {
@@ -201,6 +202,14 @@ export default function ExerciseDeckScreen() {
   } | null>(null);
   const blockScoreUpdateRef = useRef(false);
 
+  // Charm reveal state
+  const [showCharmReveal, setShowCharmReveal] = useState(false);
+  const [pendingScoreAnimation, setPendingScoreAnimation] = useState<{
+    exerciseId: string;
+    cardIndex: number;
+    pointsDelta: number;
+  } | null>(null);
+
   const flatListRef = useRef<FlatList>(null);
   const listViewRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -239,9 +248,9 @@ export default function ExerciseDeckScreen() {
     return getWorkoutMuscleGroups(workoutName);
   }, [workoutName]);
 
-  // Handle exercise completion - mark complete, scroll to next, add new exercise
-  const handleExerciseComplete = useCallback((exerciseId: string, cardIndex: number, pointsDelta: number) => {
-    if (!activeWorkout || !profile?.id) return;
+  // Phase 2: Score animation and scroll to next (called after charm reveal closes)
+  const runScoreAnimationAndScroll = useCallback((exerciseId: string, cardIndex: number, pointsDelta: number) => {
+    if (!activeWorkout) return;
 
     setCompletingExerciseId(exerciseId);
     completingCardIndexRef.current = cardIndex;
@@ -254,9 +263,6 @@ export default function ExerciseDeckScreen() {
     const steps = 30;
     const increment = pointsDelta / steps;
     let step = 0;
-
-    // Mark exercise as completed (card darkens)
-    markExerciseCompleted(exerciseId);
 
     // Find next non-completed card index to scroll to
     const nextIndex = activeWorkout.exercises.findIndex(
@@ -314,7 +320,41 @@ export default function ExerciseDeckScreen() {
         }, 300); // Small pause after score finishes before scrolling
       }
     }, duration / steps);
-  }, [activeWorkout, profile?.id, markExerciseCompleted, exercises, workoutMuscleGroups, addExercise]);
+  }, [activeWorkout, exercises, workoutMuscleGroups, addExercise]);
+
+  // Handle exercise completion - mark complete, show charm reveal
+  const handleExerciseComplete = useCallback((exerciseId: string, cardIndex: number, pointsDelta: number) => {
+    if (!activeWorkout || !profile?.id) return;
+
+    // Mark exercise as completed (card darkens)
+    markExerciseCompleted(exerciseId);
+
+    // Store the pending score animation data
+    setPendingScoreAnimation({ exerciseId, cardIndex, pointsDelta });
+
+    // Show charm reveal animation (for testing, always show)
+    setTimeout(() => {
+      setShowCharmReveal(true);
+    }, 300); // Small delay after card greys out
+  }, [activeWorkout, profile?.id, markExerciseCompleted]);
+
+  // Handle charm collection
+  const handleCharmCollect = useCallback(() => {
+    // Called when user taps the charm - charm will animate away
+    console.log('Charm collected!');
+  }, []);
+
+  // Handle charm reveal animation complete (rip closes)
+  const handleCharmAnimationComplete = useCallback(() => {
+    setShowCharmReveal(false);
+
+    // Now run the score animation and scroll
+    if (pendingScoreAnimation) {
+      const { exerciseId, cardIndex, pointsDelta } = pendingScoreAnimation;
+      setPendingScoreAnimation(null);
+      runScoreAnimationAndScroll(exerciseId, cardIndex, pointsDelta);
+    }
+  }, [pendingScoreAnimation, runScoreAnimationAndScroll]);
 
   // Get muscle data by group name (with decay applied)
   // Moved here so it's available to useFocusEffect below
@@ -1073,6 +1113,17 @@ export default function ExerciseDeckScreen() {
         onClose={() => setShowExercisePicker(false)}
         onSelectExercise={handleSelectExercise}
         workoutName={workoutName}
+      />
+
+      {/* Charm Rip Reveal Animation */}
+      <CharmRipReveal
+        visible={showCharmReveal}
+        cardWidth={CARD_WIDTH}
+        cardHeight={500}
+        charmTitle="Rage Charm"
+        charmDescription="Next PR: +25% points"
+        onCollect={handleCharmCollect}
+        onAnimationComplete={handleCharmAnimationComplete}
       />
     </SafeAreaView>
   );
