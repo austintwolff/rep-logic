@@ -9,6 +9,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/constants/Colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -238,8 +239,11 @@ export function CharmRipReveal({
           ]}
         >
           <View style={[styles.cardContent, styles.topCardContent, { borderRadius: 20 }]}>
-            {/* Torn edge decoration at bottom */}
-            <View style={styles.tornEdgeTop} />
+            {/* 3D depth gradient at bottom edge */}
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
+              style={styles.topEdgeGradient}
+            />
           </View>
         </Animated.View>
 
@@ -253,8 +257,11 @@ export function CharmRipReveal({
           ]}
         >
           <View style={[styles.cardContent, styles.bottomCardContent, { borderRadius: 20 }]}>
-            {/* Torn edge decoration at top */}
-            <View style={styles.tornEdgeBottom} />
+            {/* 3D depth gradient at top edge */}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.4)', 'transparent']}
+              style={styles.bottomEdgeGradient}
+            />
           </View>
         </Animated.View>
       </View>
@@ -309,21 +316,19 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  tornEdgeTop: {
+  topEdgeGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 4,
-    backgroundColor: colors.bgTertiary,
+    height: 30,
   },
-  tornEdgeBottom: {
+  bottomEdgeGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 4,
-    backgroundColor: colors.bgTertiary,
+    height: 30,
   },
   charmTouchable: {
     justifyContent: 'center',
