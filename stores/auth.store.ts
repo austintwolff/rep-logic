@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Profile, UserStats } from '@/types/database';
+import { uploadAvatar, updateProfileInDatabase } from '@/services/profile.service';
 
 interface AuthState {
   session: Session | null;
@@ -20,6 +21,7 @@ interface AuthState {
   fetchUserStats: () => Promise<void>;
   refreshUserStats: () => Promise<void>;
   updateBodyweight: (bodyweightKg: number) => Promise<void>;
+  updateProfile: (displayName: string, avatarUri?: string | null) => Promise<void>;
 }
 
 // MOCK DATA FOR TESTING (auth disabled)
@@ -271,6 +273,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('Error updating bodyweight:', error);
       throw error;
     }
+
+    await get().fetchProfile();
+  },
+
+  updateProfile: async (displayName: string, avatarUri?: string | null) => {
+    const user = get().user;
+    if (!user) return;
+
+    let avatarUrl: string | null | undefined;
+
+    // If a new avatar was selected, upload it
+    if (avatarUri && !avatarUri.startsWith('http')) {
+      avatarUrl = await uploadAvatar(user.id, avatarUri);
+    } else if (avatarUri === null) {
+      // User wants to remove their avatar
+      avatarUrl = null;
+    }
+
+    await updateProfileInDatabase({
+      userId: user.id,
+      displayName,
+      avatarUrl,
+    });
 
     await get().fetchProfile();
   },

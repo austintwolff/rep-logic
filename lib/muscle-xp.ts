@@ -7,9 +7,12 @@
  * - Rolling 7-day diminishing returns: 100% (1-15 sets), 50% (16-25), 20% (26+)
  * - PR bonus: 2x XP for sets that achieve a PR
  *
- * Levels 1-25:
- * - Formula: xpForMuscleLevel(L) = floor(12 * 1.25^L)
- * - Total to level 25: ~15,822 XP
+ * Level XP Requirements (two-phase curve):
+ * - Onboarding (Levels 1-5): XP = 120 * 1.12^(L-1)
+ *   (0→1: 120, 1→2: 134, 2→3: 150, 3→4: 168, 4→5: 188)
+ * - Main curve (Levels 6-25): XP = 300 * 1.10^(L-6)
+ *   (5→6: 300, 6→7: 330, ..., 24→25: 1834)
+ * - Total to level 25: ~10,541 XP
  */
 
 // ============================================================================
@@ -39,9 +42,17 @@ export const MUSCLE_XP_CONFIG = {
 
   PR_BONUS_MULTIPLIER: 2.0,
 
-  // Level curve parameters
-  LEVEL_BASE: 12,
-  LEVEL_GROWTH_RATE: 1.25,
+  // Level curve parameters (two-phase system)
+  ONBOARDING: {
+    MAX_LEVEL: 4, // Levels 0-4 use onboarding curve
+    BASE_XP: 120,
+    GROWTH_RATE: 1.12,
+  },
+  MAIN_CURVE: {
+    START_LEVEL: 5, // Levels 5+ use main curve
+    BASE_XP: 300,
+    GROWTH_RATE: 1.10,
+  },
 
   // Decay parameters
   DECAY: {
@@ -55,17 +66,24 @@ export const MUSCLE_XP_CONFIG = {
 // ============================================================================
 
 /**
- * Calculate XP required for a specific muscle level
- * Formula: floor(12 * 1.25^level)
+ * Calculate XP required to reach level L (from level L-1)
+ * Two-phase curve:
+ * - Onboarding (L 1-5): 120 * 1.12^(L-1)
+ * - Main curve (L 6-25): 300 * 1.10^(L-6)
  */
 export function xpForMuscleLevel(level: number): number {
   if (level < 1) return 0;
   if (level > MUSCLE_XP_CONFIG.MAX_LEVEL) return Number.MAX_SAFE_INTEGER;
 
-  return Math.floor(
-    MUSCLE_XP_CONFIG.LEVEL_BASE *
-      Math.pow(MUSCLE_XP_CONFIG.LEVEL_GROWTH_RATE, level)
-  );
+  const { ONBOARDING, MAIN_CURVE } = MUSCLE_XP_CONFIG;
+
+  // Onboarding levels 1-5: uses 120 * 1.12^(L-1)
+  if (level <= ONBOARDING.MAX_LEVEL + 1) {
+    return Math.floor(ONBOARDING.BASE_XP * Math.pow(ONBOARDING.GROWTH_RATE, level - 1));
+  }
+
+  // Main curve levels 6-25: uses 300 * 1.10^(L-6)
+  return Math.floor(MAIN_CURVE.BASE_XP * Math.pow(MAIN_CURVE.GROWTH_RATE, level - MAIN_CURVE.START_LEVEL - 1));
 }
 
 /**

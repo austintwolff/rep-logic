@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
-import { useColorScheme } from '@/components/useColorScheme';
 import { getUserMuscleLevels } from '@/services/baseline.service';
 import {
   xpForMuscleLevel,
@@ -10,6 +10,7 @@ import {
   DecayStatus,
 } from '@/lib/muscle-xp';
 import { MuscleLevel } from '@/types/database';
+import { colors } from '@/constants/Colors';
 
 // All muscle groups we track (granular)
 const ALL_MUSCLE_GROUPS = [
@@ -43,25 +44,8 @@ const MUSCLE_DISPLAY_NAMES: Record<string, string> = {
   'calves': 'Calves',
 };
 
-// Emoji icons for each muscle group
-const MUSCLE_ICONS: Record<string, string> = {
-  'chest': '🫁',
-  'upper back': '🔙',
-  'lower back': '⬇️',
-  'shoulders': '💪',
-  'biceps': '💪',
-  'triceps': '💪',
-  'forearms': '🤚',
-  'core': '🎯',
-  'quads': '🦵',
-  'hamstrings': '🦵',
-  'glutes': '🍑',
-  'calves': '🦶',
-};
-
 export default function ProgressScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const { profile } = useAuthStore();
 
   const [muscleLevels, setMuscleLevels] = useState<MuscleLevel[]>([]);
@@ -132,23 +116,23 @@ export default function ProgressScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}
-      contentContainerStyle={styles.content}
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 20 }]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={isDark ? '#10B981' : '#10B981'}
+          tintColor={colors.accent}
         />
       }
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+        <Text style={styles.title}>
           Muscle Progress
         </Text>
         <View style={styles.totalLevel}>
-          <Text style={[styles.totalLevelLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.totalLevelLabel}>
             Total Level
           </Text>
           <Text style={styles.totalLevelValue}>{totalLevel}</Text>
@@ -165,19 +149,16 @@ export default function ProgressScreen() {
           return (
             <View
               key={muscle.muscle_group}
-              style={[styles.muscleCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+              style={styles.muscleCard}
             >
               <View style={styles.muscleHeader}>
                 <View style={styles.muscleInfo}>
-                  <Text style={styles.muscleIcon}>
-                    {MUSCLE_ICONS[muscle.muscle_group] || '💪'}
-                  </Text>
                   <View>
-                    <Text style={[styles.muscleName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+                    <Text style={styles.muscleName}>
                       {MUSCLE_DISPLAY_NAMES[muscle.muscle_group] || muscle.muscle_group}
                     </Text>
                     {isDecaying && (
-                      <Text style={[styles.decayHint, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                      <Text style={styles.decayHint}>
                         {muscle.decayStatus === 'decaying'
                           ? `Resting · ${muscle.levelsLost} level${muscle.levelsLost > 1 ? 's' : ''} to recover`
                           : 'Resting'}
@@ -197,7 +178,7 @@ export default function ProgressScreen() {
               </View>
 
               <View style={styles.progressContainer}>
-                <View style={[styles.progressBg, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
+                <View style={styles.progressBg}>
                   <View
                     style={[
                       styles.progressFill,
@@ -217,7 +198,7 @@ export default function ProgressScreen() {
       {/* Empty State */}
       {sortedMuscles.every(m => m.effectiveLevel === 0 && m.effectiveProgress === 0) && (
         <View style={styles.emptyState}>
-          <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.emptyText}>
             Complete workouts to level up your muscles!
           </Text>
         </View>
@@ -229,6 +210,7 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   content: {
     padding: 20,
@@ -243,6 +225,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   totalLevel: {
     alignItems: 'flex-end',
@@ -250,11 +233,12 @@ const styles = StyleSheet.create({
   totalLevelLabel: {
     fontSize: 12,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
   totalLevelValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#10B981',
+    color: colors.accent,
     fontVariant: ['tabular-nums'],
   },
   muscleList: {
@@ -263,11 +247,7 @@ const styles = StyleSheet.create({
   muscleCard: {
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: colors.bgSecondary,
   },
   muscleHeader: {
     flexDirection: 'row',
@@ -280,31 +260,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  muscleIcon: {
-    fontSize: 20,
-  },
   muscleName: {
     fontSize: 16,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   decayHint: {
     fontSize: 12,
     marginTop: 2,
+    color: colors.textMuted,
   },
   levelBadge: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   levelBadgeMax: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warning,
   },
   levelBadgeResting: {
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.textMuted,
   },
   levelText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
@@ -316,17 +295,18 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     overflow: 'hidden',
+    backgroundColor: colors.bgTertiary,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     borderRadius: 4,
   },
   progressFillMax: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warning,
   },
   progressFillResting: {
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.textMuted,
   },
   progressEmpty: {
     backgroundColor: 'transparent',
@@ -338,5 +318,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
 });

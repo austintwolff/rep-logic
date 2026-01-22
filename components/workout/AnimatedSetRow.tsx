@@ -11,14 +11,15 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { PointsResult, PointBonus } from '@/lib/points-engine/types';
+import { colors } from '@/constants/Colors';
 
 // Multiplier colors
 const MULTIPLIER_COLORS = {
-  hypertrophy_rep_range: '#8B5CF6', // Purple - rep range
-  progressive_overload: '#EF4444',  // Red
-  workout_streak: '#3B82F6',        // Blue
-  volume_scaling: '#8B5CF6',        // Purple (same as rep range)
-  weekly_consistency: '#3B82F6',    // Blue
+  hypertrophy_rep_range: colors.accentLight, // Purple - rep range
+  progressive_overload: colors.error,        // Red
+  workout_streak: colors.info,               // Blue
+  volume_scaling: colors.accentLight,        // Purple (same as rep range)
+  weekly_consistency: colors.info,           // Blue
 } as const;
 
 interface AnimatedSetRowProps {
@@ -29,7 +30,6 @@ interface AnimatedSetRowProps {
   weightUnit: 'kg' | 'lbs';
   pointsResult: PointsResult;
   onAnimationComplete?: () => void;
-  isDark: boolean;
 }
 
 export default function AnimatedSetRow({
@@ -40,7 +40,6 @@ export default function AnimatedSetRow({
   weightUnit,
   pointsResult,
   onAnimationComplete,
-  isDark,
 }: AnimatedSetRowProps) {
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [currentBonusIndex, setCurrentBonusIndex] = useState(-1); // -1 = base phase, 0+ = bonus phases
@@ -187,8 +186,8 @@ export default function AnimatedSetRow({
   }));
 
   const detailsTextAnimatedStyle = useAnimatedStyle(() => {
-    const normalColor = isDark ? '#F9FAFB' : '#111827';
-    const flashColor = '#10B981';
+    const normalColor = colors.textPrimary;
+    const flashColor = colors.accent;
     return {
       color: interpolateColor(detailsFlash.value, [0, 1], [normalColor, flashColor]),
     };
@@ -203,8 +202,8 @@ export default function AnimatedSetRow({
     ? displayBonuses[currentBonusIndex]
     : null;
   const bonusColor = currentBonus
-    ? MULTIPLIER_COLORS[currentBonus.type as keyof typeof MULTIPLIER_COLORS] || '#8B5CF6'
-    : '#8B5CF6';
+    ? MULTIPLIER_COLORS[currentBonus.type as keyof typeof MULTIPLIER_COLORS] || colors.accentLight
+    : colors.accentLight;
 
   const formatMultiplier = (bonus: PointBonus): string => {
     const multiplierValue = 1 + bonus.multiplier;
@@ -225,8 +224,8 @@ export default function AnimatedSetRow({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      <Text style={[styles.setNumber, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+    <View style={styles.container}>
+      <Text style={styles.setNumber}>
         {setNumber}
       </Text>
 
@@ -266,12 +265,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 6,
     position: 'relative',
+    backgroundColor: colors.bgSecondary,
   },
   setNumber: {
     width: 24,
     fontSize: 14,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+    color: colors.textMuted,
   },
   detailsContainer: {
     flex: 1,
@@ -288,14 +289,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   bonusText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 11,
     fontWeight: '700',
   },
   pointsText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.accent,
     fontVariant: ['tabular-nums'],
     minWidth: 40,
     textAlign: 'right',

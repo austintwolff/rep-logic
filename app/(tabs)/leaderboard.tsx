@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/auth.store';
 import { getLeaderboard, LeaderboardEntry } from '@/services/workout.service';
+import { colors } from '@/constants/Colors';
 
 export default function LeaderboardScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -50,9 +50,7 @@ export default function LeaderboardScreen() {
       <View
         style={[
           styles.card,
-          { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
           isCurrentUser && styles.currentUserCard,
-          isCurrentUser && { backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF' },
         ]}
       >
         {/* Top row: rank, username, trophies */}
@@ -64,7 +62,6 @@ export default function LeaderboardScreen() {
             <Text
               style={[
                 styles.username,
-                { color: isDark ? '#F9FAFB' : '#111827' },
                 isCurrentUser && styles.currentUserText,
               ]}
               numberOfLines={1}
@@ -85,30 +82,30 @@ export default function LeaderboardScreen() {
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            <Text style={styles.statValue}>
               {item.totalWorkouts}
               {item.userId === workoutsLeader && item.totalWorkouts > 0 && ' 🏆'}
             </Text>
-            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.statLabel}>
               workouts
             </Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: '#10B981' }]}>
+            <Text style={styles.statValueAccent}>
               {item.totalPoints.toLocaleString()}
             </Text>
-            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.statLabel}>
               total pts
             </Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            <Text style={styles.statValue}>
               {item.bestWorkoutPoints.toLocaleString()}
               {item.userId === highscoreLeader && item.bestWorkoutPoints > 0 && ' 🏆'}
             </Text>
-            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.statLabel}>
               best
             </Text>
           </View>
@@ -119,11 +116,11 @@ export default function LeaderboardScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>🏆</Text>
-      <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+      <Text style={styles.emptyIcon}>🏆</Text>
+      <Text style={styles.emptyTitle}>
         No rankings yet
       </Text>
-      <Text style={[styles.emptyDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+      <Text style={styles.emptyDescription}>
         Complete workouts to appear on the leaderboard
       </Text>
     </View>
@@ -131,20 +128,20 @@ export default function LeaderboardScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.loadingContainer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-        <ActivityIndicator size="large" color="#10B981" />
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <View style={styles.container}>
       <FlatList
         data={leaderboard}
         renderItem={renderEntry}
         keyExtractor={(item) => item.userId}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingTop: insets.top + 20 }]}
         onRefresh={loadLeaderboard}
         refreshing={isLoading}
       />
@@ -155,6 +152,7 @@ export default function LeaderboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -168,15 +166,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.bgSecondary,
   },
   currentUserCard: {
     borderWidth: 2,
-    borderColor: '#10B981',
+    borderColor: colors.accent,
   },
   topRow: {
     flexDirection: 'row',
@@ -187,13 +181,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   rankText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -203,12 +197,13 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 17,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   currentUserText: {
     fontWeight: '700',
   },
   youBadge: {
-    color: '#10B981',
+    color: colors.accent,
     fontWeight: '600',
   },
   trophyContainer: {
@@ -229,14 +224,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  statValueAccent: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    color: colors.accent,
   },
   statLabel: {
     fontSize: 12,
     marginTop: 2,
+    color: colors.textSecondary,
   },
   statDivider: {
     width: 1,
     height: 28,
+    backgroundColor: colors.border,
   },
   emptyContainer: {
     flex: 1,
@@ -246,16 +250,19 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 48,
+    color: colors.bgTertiary,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
     marginTop: 16,
     marginBottom: 8,
+    color: colors.textPrimary,
   },
   emptyDescription: {
     fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 40,
+    color: colors.textSecondary,
   },
 });

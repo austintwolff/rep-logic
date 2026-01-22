@@ -7,15 +7,51 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { showAlert } from '@/lib/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore, WorkoutExercise } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { saveWorkoutToDatabase } from '@/services/workout.service';
 import { GoalBucket } from '@/lib/points-engine';
 import ExercisePicker from '@/components/workout/ExercisePicker';
+import { colors } from '@/constants/Colors';
+
+// Custom SVG Icons
+function CloseIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6L6 18" stroke={colors.error} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M6 6L18 18" stroke={colors.error} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function CheckIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M20 6L9 17L4 12" stroke={colors.accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function ChevronIcon({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 18L15 12L9 6" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function PlusIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5V19" stroke={colors.textPrimary} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M5 12H19" stroke={colors.textPrimary} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 // Muscle group icons
 const MUSCLE_ICONS: Record<string, string> = {
@@ -36,8 +72,6 @@ const MUSCLE_ICONS: Record<string, string> = {
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ name?: string; goal?: string }>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   // Goal mode from setup screen (for future use)
   const goalMode = params.goal as 'Strength' | 'Hypertrophy' | 'Endurance' | undefined;
@@ -184,8 +218,8 @@ export default function ActiveWorkoutScreen() {
 
   if (!activeWorkout) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-        <Text style={{ color: isDark ? '#F9FAFB' : '#111827' }}>Loading...</Text>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.loadingText}>Loading...</Text>
       </SafeAreaView>
     );
   }
@@ -198,47 +232,47 @@ export default function ActiveWorkoutScreen() {
     return (
       <TouchableOpacity
         key={exercise.id}
-        style={[styles.exerciseCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+        style={styles.exerciseCard}
         onPress={() => handleExercisePress(index)}
         activeOpacity={0.7}
       >
         <View style={styles.exerciseCardLeft}>
           <Text style={styles.exerciseIcon}>{icon}</Text>
           <View style={styles.exerciseInfo}>
-            <Text style={[styles.exerciseName, { color: isDark ? '#F9FAFB' : '#111827' }]} numberOfLines={1}>
+            <Text style={styles.exerciseName} numberOfLines={1}>
               {exercise.exercise.name}
             </Text>
-            <Text style={[styles.exerciseMuscle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.exerciseMuscle}>
               {exercise.exercise.muscle_group}
             </Text>
           </View>
         </View>
         <View style={styles.exerciseCardRight}>
-          <Text style={[styles.exerciseSets, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.exerciseSets}>
             {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
           </Text>
           {exercisePoints > 0 && (
             <Text style={styles.exercisePoints}>+{exercisePoints} pts</Text>
           )}
         </View>
-        <Text style={[styles.chevron, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>›</Text>
+        <ChevronIcon />
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancelWorkout} style={styles.headerButton}>
-          <Text style={styles.cancelIcon}>✕</Text>
+        <TouchableOpacity onPress={handleCancelWorkout} style={styles.headerButton} accessibilityLabel="Cancel workout">
+          <CloseIcon />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.workoutName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.workoutName}>
             {activeWorkout.name}
           </Text>
-          <Text style={[styles.timer, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.timer}>
             {formatTime(elapsedTime)}
           </Text>
         </View>
@@ -247,32 +281,35 @@ export default function ActiveWorkoutScreen() {
           onPress={handleFinishWorkout}
           style={styles.headerButton}
           disabled={isSaving}
+          accessibilityLabel="Finish workout"
         >
-          <Text style={[styles.checkIcon, isSaving && styles.checkIconDisabled]}>✓</Text>
+          <View style={isSaving ? { opacity: 0.5 } : undefined}>
+            <CheckIcon />
+          </View>
         </TouchableOpacity>
       </View>
 
       {/* Stats Bar */}
-      <View style={[styles.statsBar, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      <View style={styles.statsBar}>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: '#10B981' }]}>
+          <Text style={styles.statValueAccent}>
             {activeWorkout.totalPoints}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>pts</Text>
+          <Text style={styles.statLabel}>pts</Text>
         </View>
-        <Text style={[styles.statDivider, { color: isDark ? '#374151' : '#D1D5DB' }]}>|</Text>
+        <Text style={styles.statDivider}>|</Text>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.statValue}>
             {totalSets}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>sets</Text>
+          <Text style={styles.statLabel}>sets</Text>
         </View>
-        <Text style={[styles.statDivider, { color: isDark ? '#374151' : '#D1D5DB' }]}>|</Text>
+        <Text style={styles.statDivider}>|</Text>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.statValue}>
             {activeWorkout.exercises.length}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>exercises</Text>
+          <Text style={styles.statLabel}>exercises</Text>
         </View>
       </View>
 
@@ -284,11 +321,11 @@ export default function ActiveWorkoutScreen() {
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>🏋️</Text>
-            <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            <Text style={styles.emptyIcon}>🏋️</Text>
+            <Text style={styles.emptyTitle}>
               No exercises yet
             </Text>
-            <Text style={[styles.emptyDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.emptyDescription}>
               Add your first exercise to start tracking your workout
             </Text>
           </View>
@@ -300,7 +337,7 @@ export default function ActiveWorkoutScreen() {
         style={styles.addExerciseButton}
         onPress={() => setShowExercisePicker(true)}
       >
-        <Text style={styles.addIcon}>+</Text>
+        <PlusIcon />
         <Text style={styles.addExerciseText}>Add Exercise</Text>
       </TouchableOpacity>
 
@@ -309,7 +346,6 @@ export default function ActiveWorkoutScreen() {
         visible={showExercisePicker}
         onClose={() => setShowExercisePicker(false)}
         onSelectExercise={handleAddExercise}
-        isDark={isDark}
         workoutName={activeWorkout?.name}
       />
     </SafeAreaView>
@@ -319,6 +355,10 @@ export default function ActiveWorkoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
+  },
+  loadingText: {
+    color: colors.textPrimary,
   },
   header: {
     flexDirection: 'row',
@@ -331,19 +371,7 @@ const styles = StyleSheet.create({
     padding: 8,
     width: 44,
     alignItems: 'center',
-  },
-  cancelIcon: {
-    fontSize: 20,
-    color: '#EF4444',
-    fontWeight: '300',
-  },
-  checkIcon: {
-    fontSize: 20,
-    color: '#10B981',
-    fontWeight: '700',
-  },
-  checkIconDisabled: {
-    opacity: 0.5,
+    justifyContent: 'center',
   },
   headerCenter: {
     alignItems: 'center',
@@ -351,10 +379,12 @@ const styles = StyleSheet.create({
   workoutName: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   timer: {
     fontSize: 14,
     fontVariant: ['tabular-nums'],
+    color: colors.textSecondary,
   },
   statsBar: {
     flexDirection: 'row',
@@ -366,6 +396,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     gap: 12,
+    backgroundColor: colors.bgSecondary,
   },
   stat: {
     flexDirection: 'row',
@@ -376,13 +407,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  statValueAccent: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    color: colors.accent,
   },
   statLabel: {
     fontSize: 13,
+    color: colors.textSecondary,
   },
   statDivider: {
     fontSize: 16,
     fontWeight: '300',
+    color: colors.border,
   },
   content: {
     flex: 1,
@@ -399,6 +439,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 16,
+    backgroundColor: colors.bgSecondary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -421,9 +462,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 2,
+    color: colors.textPrimary,
   },
   exerciseMuscle: {
     fontSize: 13,
+    color: colors.textSecondary,
   },
   exerciseCardRight: {
     alignItems: 'flex-end',
@@ -432,16 +475,13 @@ const styles = StyleSheet.create({
   exerciseSets: {
     fontSize: 14,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   exercisePoints: {
     fontSize: 13,
-    color: '#10B981',
+    color: colors.accent,
     fontWeight: '600',
     marginTop: 2,
-  },
-  chevron: {
-    fontSize: 24,
-    fontWeight: '300',
   },
   emptyState: {
     alignItems: 'center',
@@ -456,37 +496,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
     marginBottom: 8,
+    color: colors.textPrimary,
   },
   emptyDescription: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+    color: colors.textSecondary,
   },
   addExerciseButton: {
     position: 'absolute',
     bottom: 30,
     left: 20,
     right: 20,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
     borderRadius: 16,
     gap: 8,
-    shadowColor: '#10B981',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  addIcon: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
   addExerciseText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },

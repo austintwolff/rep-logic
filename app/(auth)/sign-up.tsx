@@ -13,6 +13,7 @@ import {
 import { showAlert } from '@/lib/alert';
 import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
+import { colors } from '@/constants/Colors';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -76,7 +77,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               placeholder="Username"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -86,7 +87,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               placeholder="Email"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -97,7 +98,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               placeholder="Password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -107,7 +108,7 @@ export default function SignUpScreen() {
             <TextInput
               style={styles.input}
               placeholder="Confirm Password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -120,7 +121,7 @@ export default function SignUpScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.textPrimary} />
               ) : (
                 <Text style={styles.buttonText}>Create Account</Text>
               )}
@@ -144,7 +145,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: colors.bgPrimary,
   },
   scrollContent: {
     flexGrow: 1,
@@ -161,12 +162,12 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#10B981',
+    color: colors.accent,
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   form: {
     gap: 16,
@@ -174,20 +175,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#F9FAFB',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.bgSecondary,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#F9FAFB',
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.border,
   },
   button: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -207,11 +208,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   link: {
-    color: '#10B981',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
   },

@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import Animated from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 import { showAlert } from '@/lib/alert';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors } from '@/constants/Colors';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
@@ -119,27 +120,55 @@ const MUSCLE_DISPLAY_NAMES: Record<string, string> = {
   'calves': 'Calves',
 };
 
-// Emoji icons for each muscle group (same as progress screen)
-const MUSCLE_ICONS: Record<string, string> = {
-  'chest': '🫁',
-  'upper back': '🔙',
-  'lower back': '⬇️',
-  'shoulders': '💪',
-  'biceps': '💪',
-  'triceps': '💪',
-  'forearms': '🤚',
-  'core': '🎯',
-  'quads': '🦵',
-  'hamstrings': '🦵',
-  'glutes': '🍑',
-  'calves': '🦶',
-};
+
+// Custom SVG Icons
+function PlusIcon({ size = 28, color = colors.textPrimary }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5V19" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M5 12H19" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function ListIcon({ size = 24, color = colors.textPrimary }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 6H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 12H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 18H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 6H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 12H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 18H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function GridIcon({ size = 24, color = colors.textPrimary }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 3H10V10H3V3Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M14 3H21V10H14V3Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M14 14H21V21H14V14Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M3 14H10V21H3V14Z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function SearchIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 export default function ExerciseDeckScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ name?: string; goal?: string }>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+
+  // Always use dark theme
+  const isDark = true;
 
   const { user, profile, refreshUserStats } = useAuthStore();
   const { weightUnit } = useSettingsStore();
@@ -692,17 +721,15 @@ export default function ExerciseDeckScreen() {
       <View
         style={[
           styles.card,
-          { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
           isCompleted && styles.cardCompleted,
         ]}
       >
         {/* Equipment Badge - Top Right */}
         <View style={[
           styles.equipmentBadge,
-          { backgroundColor: isDark ? '#374151' : '#E5E7EB' },
           isCompleted && { opacity: 0.5 },
         ]}>
-          <Text style={[styles.equipmentBadgeText, { color: isDark ? '#D1D5DB' : '#4B5563' }]}>
+          <Text style={styles.equipmentBadgeText}>
             {equipmentType}
           </Text>
         </View>
@@ -711,7 +738,7 @@ export default function ExerciseDeckScreen() {
         <View style={[styles.cardHeader, isCompleted && { opacity: 0.4 }]}>
           {/* Exercise Name - single line with truncation */}
           <Text
-            style={[styles.exerciseName, { color: isDark ? '#F9FAFB' : '#111827' }]}
+            style={styles.exerciseName}
             numberOfLines={1}
           >
             {exercise.name}
@@ -720,8 +747,8 @@ export default function ExerciseDeckScreen() {
           {/* Stats Row: PR | Total Sets */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>PR</Text>
-              <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+              <Text style={styles.statLabel}>PR</Text>
+              <Text style={styles.statValue}>
                 {bestSet
                   ? bestSet.isBodyweight
                     ? `${bestSet.reps} reps`
@@ -729,17 +756,17 @@ export default function ExerciseDeckScreen() {
                   : '—'}
               </Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>Sets</Text>
-              <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827', fontVariant: ['tabular-nums'] }]}>
+              <Text style={styles.statLabel}>Sets</Text>
+              <Text style={[styles.statValue, { fontVariant: ['tabular-nums'] }]}>
                 {setsCompleted}
               </Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>Points</Text>
-              <Text style={[styles.statValueGreen, { fontVariant: ['tabular-nums'] }]}>
+              <Text style={styles.statLabel}>Points</Text>
+              <Text style={[styles.statValueAccent, { fontVariant: ['tabular-nums'] }]}>
                 {exercisePoints}
               </Text>
             </View>
@@ -785,7 +812,7 @@ export default function ExerciseDeckScreen() {
         )}
       </View>
     );
-  }, [isDark, getMuscleData, handleStartExercise, weightUnit, animatingCardId, muscleXpGains, handleMuscleXpAnimationComplete]);
+  }, [getMuscleData, handleStartExercise, weightUnit, animatingCardId, muscleXpGains, handleMuscleXpAnimationComplete]);
 
   // Handle starting an exercise from the list view
   const handleStartFromList = useCallback((exercise: Exercise) => {
@@ -809,7 +836,7 @@ export default function ExerciseDeckScreen() {
     const deckData = getDeckExerciseData(exercise.id);
 
     return (
-      <View style={[styles.listRow, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      <View style={styles.listRow}>
         <TouchableOpacity
           style={styles.listRowContent}
           onPress={() => {
@@ -826,16 +853,16 @@ export default function ExerciseDeckScreen() {
         >
           <View style={styles.listRowLeft}>
             <View style={styles.listRowNameRow}>
-              <Text style={[styles.listRowName, { color: isDark ? '#F9FAFB' : '#111827' }]} numberOfLines={1}>
+              <Text style={styles.listRowName} numberOfLines={1}>
                 {exercise.name}
               </Text>
             </View>
             <View style={styles.listRowMeta}>
-              <Text style={[styles.listRowMuscle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <Text style={styles.listRowMuscle}>
                 {exercise.muscle_group}
               </Text>
-              <Text style={[styles.listRowDot, { color: isDark ? '#4B5563' : '#D1D5DB' }]}>•</Text>
-              <Text style={[styles.listRowEquipment, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+              <Text style={styles.listRowDot}>•</Text>
+              <Text style={styles.listRowEquipment}>
                 {equipmentType}
               </Text>
             </View>
@@ -843,7 +870,7 @@ export default function ExerciseDeckScreen() {
           <View style={styles.listRowRight}>
             {deckData && deckData.setsCompleted > 0 && (
               <View style={styles.listRowStats}>
-                <Text style={[styles.listRowSets, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={styles.listRowSets}>
                   {deckData.setsCompleted} {deckData.setsCompleted === 1 ? 'set' : 'sets'}
                 </Text>
                 <Text style={styles.listRowPoints}>{deckData.points} pts</Text>
@@ -860,32 +887,31 @@ export default function ExerciseDeckScreen() {
         </TouchableOpacity>
       </View>
     );
-  }, [isDark, getDeckExerciseData, getDeckIndex, handleStartFromList]);
+  }, [getDeckExerciseData, getDeckIndex, handleStartFromList]);
 
   // Render Add Exercise row at top of list
   const renderListHeader = useCallback(() => (
     <TouchableOpacity
-      style={[styles.addExerciseRow, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+      style={styles.addExerciseRow}
       onPress={() => setShowExercisePicker(true)}
       activeOpacity={0.7}
     >
       <View style={styles.addExerciseIcon}>
-        <Text style={styles.addExerciseIconText}>+</Text>
+        <PlusIcon size={20} color={colors.textPrimary} />
       </View>
-      <Text style={[styles.addExerciseText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+      <Text style={styles.addExerciseText}>
         Add Exercise
       </Text>
     </TouchableOpacity>
-  ), [isDark]);
+  ), []);
 
   // Empty state when no exercises in deck
   const renderEmptyState = () => (
-    <View style={[styles.emptyCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      <Text style={styles.emptyIcon}>💪</Text>
-      <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+    <View style={styles.emptyCard}>
+      <Text style={styles.emptyTitle}>
         No exercises yet
       </Text>
-      <Text style={[styles.emptySubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+      <Text style={styles.emptySubtitle}>
         Tap the + button to add your first exercise
       </Text>
       <TouchableOpacity
@@ -899,7 +925,7 @@ export default function ExerciseDeckScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <SafeAreaView style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -908,15 +934,15 @@ export default function ExerciseDeckScreen() {
           activeOpacity={0.7}
           accessibilityLabel="Add exercise"
         >
-          <Text style={[styles.iconText, { color: isDark ? '#F9FAFB' : '#111827' }]}>+</Text>
+          <PlusIcon size={28} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.workoutName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.workoutName}>
             {workoutName}
           </Text>
           {goalMode && (
-            <Text style={[styles.goalBadge, { color: '#10B981' }]}>
+            <Text style={styles.goalBadge}>
               {goalMode}
             </Text>
           )}
@@ -928,15 +954,13 @@ export default function ExerciseDeckScreen() {
           activeOpacity={0.7}
           accessibilityLabel={viewMode === 'deck' ? 'Switch to list view' : 'Switch to deck view'}
         >
-          <Text style={[styles.iconText, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-            {viewMode === 'deck' ? '☰' : '▢'}
-          </Text>
+          {viewMode === 'deck' ? <ListIcon size={24} /> : <GridIcon size={24} />}
         </TouchableOpacity>
       </View>
 
       {/* Total Score */}
       <View style={styles.scoreContainer}>
-        <Text style={[styles.scoreLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+        <Text style={styles.scoreLabel}>
           Total Score
         </Text>
         <Animated.Text style={[styles.scoreValue, isScoreAnimating && styles.scoreValueAnimating]}>
@@ -975,12 +999,12 @@ export default function ExerciseDeckScreen() {
         <View style={styles.listContainer}>
           {/* Search Input */}
           <View style={styles.searchContainer}>
-            <View style={[styles.searchInputWrapper, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-              <Text style={styles.searchIcon}>🔍</Text>
+            <View style={styles.searchInputWrapper}>
+              <SearchIcon />
               <TextInput
-                style={[styles.searchInput, { color: isDark ? '#F9FAFB' : '#111827' }]}
+                style={styles.searchInput}
                 placeholder="Search exercises..."
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
@@ -988,7 +1012,7 @@ export default function ExerciseDeckScreen() {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-                  <Text style={[styles.clearButtonText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>✕</Text>
+                  <Text style={styles.clearButtonText}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1005,7 +1029,7 @@ export default function ExerciseDeckScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.listEmpty}>
-                <Text style={[styles.listEmptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={styles.listEmptyText}>
                   {searchQuery ? 'No exercises match your search' : 'No exercises yet'}
                 </Text>
               </View>
@@ -1022,12 +1046,12 @@ export default function ExerciseDeckScreen() {
       {/* Footer Buttons */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.cancelButton, { borderColor: '#EF4444' }]}
+          style={styles.cancelButton}
           onPress={handleCancel}
           activeOpacity={0.7}
           disabled={isSaving}
         >
-          <Text style={[styles.cancelButtonText, { color: '#EF4444' }]}>
+          <Text style={styles.cancelButtonText}>
             Cancel
           </Text>
         </TouchableOpacity>
@@ -1048,7 +1072,6 @@ export default function ExerciseDeckScreen() {
         visible={showExercisePicker}
         onClose={() => setShowExercisePicker(false)}
         onSelectExercise={handleSelectExercise}
-        isDark={isDark}
         workoutName={workoutName}
       />
     </SafeAreaView>
@@ -1058,6 +1081,7 @@ export default function ExerciseDeckScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   // Top Bar
   topBar: {
@@ -1073,10 +1097,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconText: {
-    fontSize: 28,
-    fontWeight: '300',
-  },
   headerCenter: {
     alignItems: 'center',
     gap: 4,
@@ -1084,10 +1104,12 @@ const styles = StyleSheet.create({
   workoutName: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   goalBadge: {
     fontSize: 13,
     fontWeight: '600',
+    color: colors.accent,
   },
   // Score
   scoreContainer: {
@@ -1098,11 +1120,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     marginBottom: 4,
+    color: colors.textSecondary,
   },
   scoreValue: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#10B981',
+    color: colors.accent,
     fontVariant: ['tabular-nums'],
   },
   scoreValueAnimating: {
@@ -1123,6 +1146,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     height: 500,
+    backgroundColor: colors.bgSecondary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -1133,14 +1157,14 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   completedButton: {
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.textMuted,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 12,
   },
   completedButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -1152,11 +1176,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     zIndex: 1,
+    backgroundColor: colors.bgTertiary,
   },
   equipmentBadgeText: {
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
+    color: colors.textSecondary,
   },
   // Card Header Section - Fixed height
   cardHeader: {
@@ -1170,6 +1196,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     lineHeight: 22,
     paddingRight: 90,
+    color: colors.textPrimary,
   },
   // Stats Row
   statsRow: {
@@ -1186,19 +1213,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textTransform: 'uppercase',
     marginBottom: 2,
+    color: colors.textMuted,
   },
   statValue: {
     fontSize: 14,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
-  statValueGreen: {
+  statValueAccent: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.accent,
   },
   statDivider: {
     width: 1,
     height: 24,
+    backgroundColor: colors.border,
   },
   // Muscle Section - Fixed position
   muscleSection: {
@@ -1246,25 +1276,25 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     borderRadius: 3,
   },
   progressFillMax: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warning,
   },
   progressFillResting: {
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.textMuted,
   },
   // Start Button
   startButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 12,
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -1276,36 +1306,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 300,
+    backgroundColor: colors.bgSecondary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
+    color: colors.textPrimary,
   },
   emptySubtitle: {
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
+    color: colors.textSecondary,
   },
   addFirstButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,
   },
   addFirstButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1323,17 +1352,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
+    borderColor: colors.accent,
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   finishButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
   },
   finishButtonDisabled: {
     opacity: 0.6,
@@ -1341,7 +1372,7 @@ const styles = StyleSheet.create({
   finishButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   // List View
   listContainer: {
@@ -1357,15 +1388,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 44,
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    backgroundColor: colors.bgSecondary,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     height: '100%',
+    marginLeft: 8,
+    color: colors.textPrimary,
   },
   clearButton: {
     padding: 4,
@@ -1373,6 +1403,7 @@ const styles = StyleSheet.create({
   clearButtonText: {
     fontSize: 16,
     fontWeight: '300',
+    color: colors.textSecondary,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -1385,23 +1416,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
     gap: 12,
+    backgroundColor: colors.bgSecondary,
   },
   addExerciseIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  addExerciseIconText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600',
   },
   addExerciseText: {
     fontSize: 16,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   listRow: {
     flexDirection: 'row',
@@ -1409,6 +1437,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
+    backgroundColor: colors.bgSecondary,
   },
   listRowContent: {
     flex: 1,
@@ -1431,6 +1460,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     flexShrink: 1,
+    color: colors.textPrimary,
   },
   listRowMeta: {
     flexDirection: 'row',
@@ -1439,12 +1469,15 @@ const styles = StyleSheet.create({
   },
   listRowMuscle: {
     fontSize: 13,
+    color: colors.textSecondary,
   },
   listRowDot: {
     fontSize: 10,
+    color: colors.textMuted,
   },
   listRowEquipment: {
     fontSize: 12,
+    color: colors.textMuted,
   },
   listRowRight: {
     alignItems: 'flex-end',
@@ -1455,21 +1488,22 @@ const styles = StyleSheet.create({
   listRowSets: {
     fontSize: 12,
     marginBottom: 2,
+    color: colors.textSecondary,
   },
   listRowPoints: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.accent,
     fontVariant: ['tabular-nums'],
   },
   listRowStartButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
   listRowStartText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1480,5 +1514,6 @@ const styles = StyleSheet.create({
   listEmptyText: {
     fontSize: 15,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
 });

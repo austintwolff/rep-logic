@@ -1,17 +1,16 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors } from '@/constants/Colors';
 
 interface RestTimerProps {
   timeRemaining: number;
   isActive: boolean;
   onStop: () => void;
-  isDark: boolean;
 }
 
 export default function RestTimer({
   timeRemaining,
   isActive,
   onStop,
-  isDark,
 }: RestTimerProps) {
   if (!isActive) return null;
 
@@ -22,12 +21,12 @@ export default function RestTimer({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-      <Text style={[styles.title, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+    <View style={styles.container}>
+      <Text style={styles.title}>
         Rest Timer
       </Text>
       <View style={styles.row}>
-        <Text style={[styles.time, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+        <Text style={styles.time}>
           {formatTime(timeRemaining)}
         </Text>
         <TouchableOpacity onPress={onStop} style={styles.skipButton}>
@@ -46,6 +45,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
+    backgroundColor: colors.bgSecondary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 4,
+    color: colors.textSecondary,
   },
   row: {
     flexDirection: 'row',
@@ -67,15 +68,16 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
   },
   skipButton: {
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: colors.accent + '26',
   },
   skipText: {
-    color: '#10B981',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
   },

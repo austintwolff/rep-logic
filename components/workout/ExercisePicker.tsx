@@ -10,9 +10,37 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { DEFAULT_EXERCISES, MUSCLE_GROUPS, ExerciseDefinition } from '@/constants/exercises';
 import { Exercise } from '@/types/database';
 import { fetchExercisesFromDatabase } from '@/services/workout.service';
+import { colors } from '@/constants/Colors';
+
+// Custom SVG Icons
+function CloseIcon({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6L6 18" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M6 6L18 18" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function SearchIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PlusCircleIcon({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 8V16M8 12H16M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke={colors.accent} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 // Module-level cache to persist exercises across modal opens
 let cachedExercises: Exercise[] | null = null;
@@ -43,7 +71,6 @@ interface ExercisePickerProps {
   visible: boolean;
   onClose: () => void;
   onSelectExercise: (exercise: Exercise) => void;
-  isDark: boolean;
   workoutName?: string;
 }
 
@@ -51,7 +78,6 @@ export default function ExercisePicker({
   visible,
   onClose,
   onSelectExercise,
-  isDark,
   workoutName,
 }: ExercisePickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -172,36 +198,36 @@ export default function ExercisePicker({
 
     return (
       <TouchableOpacity
-        style={[styles.exerciseItem, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+        style={styles.exerciseItem}
         onPress={() => handleSelectExercise(item)}
       >
         <View style={styles.exerciseInfo}>
-          <Text style={[styles.exerciseName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.exerciseName}>
             {item.name}
           </Text>
           <View style={styles.exerciseMeta}>
-            <Text style={[styles.muscleGroup, { color: '#10B981' }]}>
+            <Text style={styles.muscleGroup}>
               {item.muscle_group}
             </Text>
-            <Text style={[styles.equipmentLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.equipmentLabel}>
               {equipmentLabel}
             </Text>
           </View>
         </View>
-        <Text style={styles.addIcon}>⊕</Text>
+        <PlusCircleIcon />
       </TouchableOpacity>
     );
   };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+      <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={[styles.closeIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>✕</Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Close">
+            <CloseIcon />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.title}>
             Add Exercise
           </Text>
           <View style={styles.placeholder} />
@@ -209,17 +235,13 @@ export default function ExercisePicker({
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <Text style={[styles.searchIcon, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>🔍</Text>
+          <View style={styles.searchIconWrapper}>
+            <SearchIcon />
+          </View>
           <TextInput
-            style={[
-              styles.searchInput,
-              {
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                color: isDark ? '#F9FAFB' : '#111827',
-              },
-            ]}
+            style={styles.searchInput}
             placeholder="Search exercises..."
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -250,7 +272,6 @@ export default function ExercisePicker({
                 <TouchableOpacity
                   style={[
                     styles.filterChip,
-                    { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
                     isActive && styles.filterChipActive,
                   ]}
                   onPress={() => {
@@ -262,7 +283,6 @@ export default function ExercisePicker({
                   <Text
                     style={[
                       styles.filterChipText,
-                      { color: isDark ? '#9CA3AF' : '#6B7280' },
                       isActive && styles.filterChipTextActive,
                     ]}
                   >
@@ -285,8 +305,8 @@ export default function ExercisePicker({
           ListHeaderComponent={
             isLoadingExercises ? (
               <View style={styles.loadingBanner}>
-                <ActivityIndicator size="small" color="#10B981" />
-                <Text style={[styles.loadingBannerText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <ActivityIndicator size="small" color={colors.accent} />
+                <Text style={styles.loadingBannerText}>
                   Loading more exercises...
                 </Text>
               </View>
@@ -294,8 +314,8 @@ export default function ExercisePicker({
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>🔍</Text>
-              <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyText}>
                 No exercises found
               </Text>
             </View>
@@ -309,6 +329,7 @@ export default function ExercisePicker({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   header: {
     flexDirection: 'row',
@@ -317,18 +338,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border,
   },
   closeButton: {
     padding: 8,
   },
-  closeIcon: {
-    fontSize: 24,
-    fontWeight: '300',
-  },
   title: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   placeholder: {
     width: 40,
@@ -339,11 +357,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  searchIcon: {
+  searchIconWrapper: {
     position: 'absolute',
     left: 36,
     zIndex: 1,
-    fontSize: 16,
   },
   searchInput: {
     flex: 1,
@@ -352,6 +369,8 @@ const styles = StyleSheet.create({
     paddingLeft: 44,
     paddingRight: 16,
     fontSize: 16,
+    backgroundColor: colors.bgSecondary,
+    color: colors.textPrimary,
   },
   filterContainer: {
     paddingBottom: 12,
@@ -365,16 +384,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     marginRight: 8,
+    backgroundColor: colors.bgSecondary,
   },
   filterChipActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
   },
   filterChipText: {
     fontSize: 14,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   exerciseList: {
     paddingHorizontal: 20,
@@ -386,6 +407,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderRadius: 12,
+    backgroundColor: colors.bgSecondary,
   },
   exerciseInfo: {
     flex: 1,
@@ -394,6 +416,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
+    color: colors.textPrimary,
   },
   exerciseMeta: {
     flexDirection: 'row',
@@ -402,13 +425,11 @@ const styles = StyleSheet.create({
   muscleGroup: {
     fontSize: 13,
     fontWeight: '500',
+    color: colors.accent,
   },
   equipmentLabel: {
     fontSize: 13,
-  },
-  addIcon: {
-    fontSize: 24,
-    color: '#10B981',
+    color: colors.textSecondary,
   },
   separator: {
     height: 8,
@@ -423,6 +444,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     marginTop: 16,
+    color: colors.textSecondary,
   },
   loadingBanner: {
     flexDirection: 'row',
@@ -433,5 +455,6 @@ const styles = StyleSheet.create({
   },
   loadingBannerText: {
     fontSize: 14,
+    color: colors.textSecondary,
   },
 });

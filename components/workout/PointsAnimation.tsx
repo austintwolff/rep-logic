@@ -7,6 +7,7 @@ import {
   Modal,
 } from 'react-native';
 import { PointsResult } from '@/lib/points-engine/types';
+import { colors } from '@/constants/Colors';
 
 interface PointsAnimationProps {
   visible: boolean;
@@ -25,27 +26,27 @@ const BONUS_INFO: Record<string, { label: string; description: string; color: st
   progressive_overload: {
     label: 'OVERLOAD',
     description: 'Beat your baseline!',
-    color: '#F59E0B',
+    color: colors.warning,
   },
   hypertrophy_rep_range: {
     label: 'HYPERTROPHY',
     description: '5-8 rep sweet spot',
-    color: '#8B5CF6',
+    color: colors.accentLight,
   },
   workout_streak: {
     label: 'STREAK',
     description: 'Consecutive workouts',
-    color: '#EF4444',
+    color: colors.error,
   },
   weekly_consistency: {
     label: 'CONSISTENCY',
     description: 'Weekly volume target',
-    color: '#3B82F6',
+    color: colors.info,
   },
   volume_scaling: {
     label: 'VOLUME',
     description: 'Set volume bonus',
-    color: '#6B7280',
+    color: colors.textMuted,
   },
 };
 
@@ -459,7 +460,7 @@ export default function PointsAnimation({
                 const info = BONUS_INFO[bonus.type] || {
                   label: bonus.type.toUpperCase(),
                   description: bonus.description,
-                  color: '#10B981',
+                  color: colors.accent,
                 };
                 const anim = bonusAnimations[index];
 
@@ -536,10 +537,9 @@ const styles = StyleSheet.create({
   },
   setInfo: {
     fontSize: 24,
-    color: '#F9FAFB',
+    color: colors.textPrimary,
     fontWeight: '700',
     marginBottom: 24,
-    letterSpacing: 0.5,
   },
   baseCalcSection: {
     alignItems: 'center',
@@ -547,10 +547,9 @@ const styles = StyleSheet.create({
   },
   baseCalcFormula: {
     fontSize: 28,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
-    letterSpacing: 1,
   },
   baseSection: {
     alignItems: 'center',
@@ -558,21 +557,20 @@ const styles = StyleSheet.create({
   },
   baseEquals: {
     fontSize: 32,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '300',
     marginBottom: 4,
   },
   baseValue: {
     fontSize: 56,
     fontWeight: '800',
-    color: '#D1D5DB',
+    color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   baseLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '600',
-    letterSpacing: 1,
     marginTop: 4,
   },
   multiplierSection: {
@@ -586,21 +584,21 @@ const styles = StyleSheet.create({
   multiplierX: {
     fontSize: 36,
     fontWeight: '300',
-    color: '#F59E0B',
+    color: colors.warning,
     marginRight: 8,
   },
   multiplierValue: {
     fontSize: 48,
     fontWeight: '800',
-    color: '#F59E0B',
+    color: colors.warning,
     fontVariant: ['tabular-nums'],
   },
   multiplierLabel: {
     fontSize: 14,
-    color: '#B45309',
+    color: colors.warning,
     fontWeight: '600',
-    letterSpacing: 1,
     marginTop: 4,
+    opacity: 0.8,
   },
   bonusesList: {
     width: '100%',
@@ -621,8 +619,7 @@ const styles = StyleSheet.create({
   bonusTagText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 1,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   bonusDetails: {
@@ -635,13 +632,13 @@ const styles = StyleSheet.create({
   },
   bonusDescription: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   divider: {
     width: 80,
     height: 3,
-    backgroundColor: '#374151',
+    backgroundColor: colors.border,
     marginVertical: 24,
     borderRadius: 2,
   },
@@ -650,19 +647,18 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '700',
-    letterSpacing: 4,
     marginBottom: 8,
   },
   totalLabelFinal: {
-    color: '#10B981',
+    color: colors.accent,
     fontSize: 18,
   },
   totalValue: {
     fontSize: 72,
     fontWeight: '900',
-    color: '#10B981',
+    color: colors.accent,
     fontVariant: ['tabular-nums'],
   },
   totalValueFinal: {
@@ -670,9 +666,8 @@ const styles = StyleSheet.create({
   },
   totalPts: {
     fontSize: 20,
-    color: '#10B981',
+    color: colors.accent,
     fontWeight: '600',
-    letterSpacing: 3,
     marginTop: -4,
   },
   totalPtsFinal: {

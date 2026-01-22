@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { PointsResult } from '@/lib/points-engine';
 import { useSettingsStore, getWeightIncrement } from '@/stores/settings.store';
+import { colors } from '@/constants/Colors';
 
 interface SetLoggerProps {
   exerciseName: string;
@@ -19,7 +20,6 @@ interface SetLoggerProps {
   historicalReps?: number;   // From best set of last 3 workouts (for first set)
   onLogSet: (weight: number | null, reps: number) => PointsResult | null;
   onStartRest: (seconds: number) => void;
-  isDark: boolean;
 }
 
 export default function SetLogger({
@@ -32,7 +32,6 @@ export default function SetLogger({
   historicalReps,
   onLogSet,
   onStartRest,
-  isDark,
 }: SetLoggerProps) {
   const { weightUnit } = useSettingsStore();
   const weightIncrement = getWeightIncrement(weightUnit);
@@ -103,7 +102,7 @@ export default function SetLogger({
   return (
     <View style={styles.container}>
       {/* Set Number */}
-      <Text style={[styles.setLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+      <Text style={styles.setLabel}>
         Set {setNumber}
       </Text>
 
@@ -112,36 +111,29 @@ export default function SetLogger({
         {/* Weight Input (if not bodyweight) */}
         {!isBodyweight && (
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.inputLabel}>
               Weight ({weightUnit})
             </Text>
             <View style={styles.inputWithButtons}>
               <TouchableOpacity
-                style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
+                style={styles.adjustButton}
                 onPress={() => adjustWeight(-weightIncrement)}
               >
-                <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>−</Text>
+                <Text style={styles.adjustButtonText}>−</Text>
               </TouchableOpacity>
               <TextInput
-                style={[
-                  styles.numberInput,
-                  {
-                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                    color: isDark ? '#F9FAFB' : '#111827',
-                    borderColor: isDark ? '#374151' : '#E5E7EB',
-                  },
-                ]}
+                style={styles.numberInput}
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
                 placeholder="0"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={colors.textMuted}
               />
               <TouchableOpacity
-                style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
+                style={styles.adjustButton}
                 onPress={() => adjustWeight(weightIncrement)}
               >
-                <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>+</Text>
+                <Text style={styles.adjustButtonText}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -149,36 +141,29 @@ export default function SetLogger({
 
         {/* Reps Input */}
         <View style={[styles.inputGroup, isBodyweight && styles.inputGroupFull]}>
-          <Text style={[styles.inputLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.inputLabel}>
             Reps
           </Text>
           <View style={styles.inputWithButtons}>
             <TouchableOpacity
-              style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
+              style={styles.adjustButton}
               onPress={() => adjustReps(-1)}
             >
-              <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>−</Text>
+              <Text style={styles.adjustButtonText}>−</Text>
             </TouchableOpacity>
             <TextInput
-              style={[
-                styles.numberInput,
-                {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  color: isDark ? '#F9FAFB' : '#111827',
-                  borderColor: isDark ? '#374151' : '#E5E7EB',
-                },
-              ]}
+              style={styles.numberInput}
               value={reps}
               onChangeText={setReps}
               keyboardType="number-pad"
               placeholder="0"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={colors.textMuted}
             />
             <TouchableOpacity
-              style={[styles.adjustButton, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}
+              style={styles.adjustButton}
               onPress={() => adjustReps(1)}
             >
-              <Text style={[styles.adjustButtonText, { color: isDark ? '#F9FAFB' : '#111827' }]}>+</Text>
+              <Text style={styles.adjustButtonText}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -191,7 +176,6 @@ export default function SetLogger({
             key={num}
             style={[
               styles.quickRepButton,
-              { backgroundColor: isDark ? '#374151' : '#E5E7EB' },
               reps === num.toString() && styles.quickRepButtonActive,
             ]}
             onPress={() => setReps(num.toString())}
@@ -199,7 +183,6 @@ export default function SetLogger({
             <Text
               style={[
                 styles.quickRepText,
-                { color: isDark ? '#F9FAFB' : '#111827' },
                 reps === num.toString() && styles.quickRepTextActive,
               ]}
             >
@@ -231,6 +214,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textTransform: 'uppercase',
+    color: colors.textSecondary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -248,6 +232,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 8,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
   inputWithButtons: {
     flexDirection: 'row',
@@ -260,10 +245,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bgTertiary,
   },
   adjustButtonText: {
     fontSize: 20,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   numberInput: {
     flex: 1,
@@ -275,6 +262,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
+    backgroundColor: colors.bgSecondary,
+    color: colors.textPrimary,
+    borderColor: colors.border,
   },
   quickRepsRow: {
     flexDirection: 'row',
@@ -287,19 +277,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
+    backgroundColor: colors.bgTertiary,
   },
   quickRepButtonActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
   },
   quickRepText: {
     fontSize: 16,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   quickRepTextActive: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   logButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -311,12 +303,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   logButtonIcon: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '700',
   },
   logButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
   },

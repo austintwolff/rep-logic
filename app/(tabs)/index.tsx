@@ -1,52 +1,80 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useAuthStore } from '@/stores/auth.store';
-import { useColorScheme } from '@/components/useColorScheme';
-import { getStreakMultiplier, xpForLevel, POINTS_CONFIG } from '@/lib/points-engine';
-import { getUserMuscleLevels, getBaselineStatus } from '@/services/baseline.service';
-import { MuscleLevel } from '@/types/database';
+import { getStreakMultiplier } from '@/lib/points-engine';
+import { colors } from '@/constants/Colors';
+
+// Custom SVG Icons
+function StarIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={colors.accent}>
+      <Path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+    </Svg>
+  );
+}
+
+function FlameIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C8.5 5.5 8 8.5 9 11C7 10 6 7.5 6 7.5C3.5 11 4 15 6 18C4.5 17 3 15.5 3 15.5C3.5 19 7.5 22 12 22Z"
+        fill={colors.accent}
+      />
+      <Path
+        d="M12 22C14.5 22 16 20 16 17.5C16 15 14 13 12 11C10 13 8 15 8 17.5C8 20 9.5 22 12 22Z"
+        fill={colors.accentLight}
+      />
+    </Svg>
+  );
+}
+
+function CalendarIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z"
+        stroke={colors.accent}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M16 2V6" stroke={colors.accent} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 2V6" stroke={colors.accent} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 10H21" stroke={colors.accent} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function ClockIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" stroke={colors.textMuted} strokeWidth={2} />
+      <Path d="M12 6V12L16 14" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PlusIcon({ size = 24, color = '#FFFFFF' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5V19" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
+      <Path d="M5 12H19" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const { profile, userStats, refreshUserStats } = useAuthStore();
-
-  const [muscleLevels, setMuscleLevels] = useState<MuscleLevel[]>([]);
-  const [baselineStatus, setBaselineStatus] = useState<{ total: number; completed: number; inProgress: number }>({ total: 0, completed: 0, inProgress: 0 });
 
   // Refresh user stats when screen loads
   useEffect(() => {
     refreshUserStats();
   }, []);
-
-  // Load muscle data when profile becomes available
-  useEffect(() => {
-    if (!profile?.id) return;
-
-    const loadMuscleLevels = async () => {
-      try {
-        const levels = await getUserMuscleLevels(profile.id);
-        const sorted = levels.sort((a, b) => b.current_level - a.current_level).slice(0, 6);
-        setMuscleLevels(sorted);
-      } catch (error) {
-        console.error('Error loading muscle levels:', error);
-      }
-    };
-
-    const loadBaselineStatus = async () => {
-      try {
-        const status = await getBaselineStatus(profile.id);
-        setBaselineStatus(status);
-      } catch (error) {
-        console.error('Error loading baseline status:', error);
-      }
-    };
-
-    loadMuscleLevels();
-    loadBaselineStatus();
-  }, [profile?.id]);
 
   const handleStartWorkout = () => {
     router.push('/workout/new');
@@ -69,53 +97,53 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}
-      contentContainerStyle={styles.content}
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 20 }]}
     >
       {/* Welcome Section */}
       <View style={styles.welcome}>
-        <Text style={[styles.greeting, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+        <Text style={styles.greeting}>
           Welcome back,
         </Text>
-        <Text style={[styles.username, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+        <Text style={styles.username}>
           {profile?.display_name || profile?.username || 'Athlete'}
         </Text>
       </View>
 
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statIconContainer}>
-            <Text style={styles.statIcon}>★</Text>
+            <StarIcon />
           </View>
-          <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.statValue}>
             {userStats?.total_points?.toLocaleString() || 0}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.statLabel}>
             Total Points
           </Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statIconContainer}>
-            <Text style={styles.statIconFire}>🔥</Text>
+            <FlameIcon />
           </View>
-          <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.statValue}>
             {userStats?.current_workout_streak || 0}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.statLabel}>
             Day Streak
           </Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={styles.statCard}>
           <View style={styles.statIconContainer}>
-            <Text style={styles.statIconCalendar}>📅</Text>
+            <CalendarIcon />
           </View>
-          <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.statValue}>
             {userStats?.total_workouts || 0}
           </Text>
-          <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.statLabel}>
             Workouts
           </Text>
         </View>
@@ -123,21 +151,21 @@ export default function HomeScreen() {
 
       {/* Start Workout Button */}
       <TouchableOpacity style={styles.startButton} onPress={handleStartWorkout}>
-        <Text style={styles.startButtonIcon}>+</Text>
+        <PlusIcon />
         <Text style={styles.startButtonText}>Start Workout</Text>
       </TouchableOpacity>
 
       {/* Weekly Points */}
-      <View style={[styles.weeklyCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-        <Text style={[styles.weeklyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+      <View style={styles.weeklyCard}>
+        <Text style={styles.weeklyTitle}>
           This Week
         </Text>
         <View style={styles.weeklyStats}>
           <View style={styles.weeklyStat}>
-            <Text style={[styles.weeklyValue, { color: '#10B981' }]}>
+            <Text style={styles.weeklyValue}>
               {userStats?.weekly_points?.toLocaleString() || 0}
             </Text>
-            <Text style={[styles.weeklyLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.weeklyLabel}>
               Points Earned
             </Text>
           </View>
@@ -146,13 +174,13 @@ export default function HomeScreen() {
 
       {/* Last Workout */}
       {userStats?.last_workout_at && (
-        <View style={[styles.lastWorkoutCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <Text style={[styles.lastWorkoutIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>⏱</Text>
+        <View style={styles.lastWorkoutCard}>
+          <ClockIcon />
           <View style={styles.lastWorkoutText}>
-            <Text style={[styles.lastWorkoutLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.lastWorkoutLabel}>
               Last Workout
             </Text>
-            <Text style={[styles.lastWorkoutValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            <Text style={styles.lastWorkoutValue}>
               {formatLastWorkout(userStats.last_workout_at as string)}
             </Text>
           </View>
@@ -161,8 +189,8 @@ export default function HomeScreen() {
 
       {/* Streak Info */}
       {(userStats?.current_workout_streak ?? 0) > 0 && (
-        <View style={[styles.streakCard, { backgroundColor: '#FEF3C7' }]}>
-          <Text style={styles.streakIcon}>🔥</Text>
+        <View style={styles.streakCard}>
+          <FlameIcon size={24} />
           <View style={styles.streakText}>
             <Text style={styles.streakTitle}>
               {userStats?.current_workout_streak} Day Streak!
@@ -175,79 +203,6 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
-
-      {/* Baseline Progress */}
-      {baselineStatus.inProgress > 0 && (
-        <View style={[styles.baselineCard, { backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF' }]}>
-          <View style={styles.baselineHeader}>
-            <Text style={[styles.baselineTitle, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
-              Baseline Mode
-            </Text>
-            <Text style={[styles.baselineCount, { color: isDark ? '#60A5FA' : '#3B82F6' }]}>
-              {baselineStatus.inProgress} exercise{baselineStatus.inProgress !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          <Text style={[styles.baselineDescription, { color: isDark ? '#BFDBFE' : '#1E40AF' }]}>
-            Complete 3 workouts per exercise to establish baselines and unlock progressive overload bonuses.
-          </Text>
-          <View style={styles.baselineProgress}>
-            <View style={[styles.baselineProgressBg, { backgroundColor: isDark ? '#1E40AF' : '#BFDBFE' }]}>
-              <View
-                style={[
-                  styles.baselineProgressFill,
-                  {
-                    backgroundColor: '#3B82F6',
-                    width: `${baselineStatus.total > 0 ? (baselineStatus.completed / baselineStatus.total) * 100 : 0}%`
-                  }
-                ]}
-              />
-            </View>
-            <Text style={[styles.baselineProgressText, { color: isDark ? '#93C5FD' : '#1E40AF' }]}>
-              {baselineStatus.completed}/{baselineStatus.total} complete
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Muscle Levels */}
-      {muscleLevels.length > 0 && (
-        <View style={[styles.muscleLevelsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <Text style={[styles.muscleLevelsTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-            Muscle Levels
-          </Text>
-          <View style={styles.muscleLevelsGrid}>
-            {muscleLevels.map((muscle) => {
-              const currentXp = muscle.current_xp || 0;
-              const xpNeeded = xpForLevel(muscle.current_level + 1);
-              const progress = Math.min(100, (currentXp / xpNeeded) * 100);
-
-              return (
-                <View
-                  key={muscle.muscle_group}
-                  style={[styles.muscleLevel, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
-                >
-                  <View style={styles.muscleLevelHeader}>
-                    <Text style={[styles.muscleLevelName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
-                      {muscle.muscle_group}
-                    </Text>
-                    <Text style={[styles.muscleLevelNumber, { color: '#10B981' }]}>
-                      Lv.{muscle.current_level}
-                    </Text>
-                  </View>
-                  <View style={[styles.muscleLevelProgressBg, { backgroundColor: isDark ? '#1F2937' : '#E5E7EB' }]}>
-                    <View
-                      style={[
-                        styles.muscleLevelProgressFill,
-                        { backgroundColor: '#10B981', width: `${progress}%` }
-                      ]}
-                    />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -255,6 +210,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   content: {
     padding: 20,
@@ -265,11 +221,13 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
+    color: colors.textSecondary,
   },
   username: {
     fontSize: 28,
     fontWeight: '700',
     marginTop: 4,
+    color: colors.textPrimary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -281,56 +239,34 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.bgSecondary,
   },
   statIconContainer: {
     marginBottom: 8,
-  },
-  statIcon: {
-    fontSize: 20,
-    color: '#10B981',
-  },
-  statIconFire: {
-    fontSize: 20,
-  },
-  statIconCalendar: {
-    fontSize: 20,
   },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
   },
   statLabel: {
     fontSize: 12,
     marginTop: 4,
+    color: colors.textSecondary,
   },
   startButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
     borderRadius: 16,
     marginBottom: 24,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  startButtonIcon: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '700',
-    marginRight: 12,
+    gap: 12,
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -338,16 +274,13 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.bgSecondary,
   },
   weeklyTitle: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
+    color: colors.textPrimary,
   },
   weeklyStats: {
     flexDirection: 'row',
@@ -359,10 +292,12 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    color: colors.accent,
   },
   weeklyLabel: {
     fontSize: 14,
     marginTop: 4,
+    color: colors.textSecondary,
   },
   streakCard: {
     flexDirection: 'row',
@@ -370,9 +305,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     gap: 12,
-  },
-  streakIcon: {
-    fontSize: 24,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.accent + '33',
   },
   streakText: {
     flex: 1,
@@ -380,11 +315,11 @@ const styles = StyleSheet.create({
   streakTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#92400E',
+    color: colors.accent,
   },
   streakDescription: {
     fontSize: 14,
-    color: '#B45309',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   lastWorkoutCard: {
@@ -394,118 +329,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  lastWorkoutIcon: {
-    fontSize: 20,
+    backgroundColor: colors.bgSecondary,
   },
   lastWorkoutText: {
     flex: 1,
   },
   lastWorkoutLabel: {
     fontSize: 12,
+    color: colors.textSecondary,
   },
   lastWorkoutValue: {
     fontSize: 16,
     fontWeight: '600',
     marginTop: 2,
-  },
-  baselineCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginTop: 16,
-  },
-  baselineHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  baselineTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  baselineCount: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  baselineDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  baselineProgress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  baselineProgressBg: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  baselineProgressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  baselineProgressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  muscleLevelsCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  muscleLevelsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  muscleLevelsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  muscleLevel: {
-    width: '48%',
-    padding: 12,
-    borderRadius: 12,
-  },
-  muscleLevelHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  muscleLevelName: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  muscleLevelNumber: {
-    fontSize: 13,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  muscleLevelProgressBg: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  muscleLevelProgressFill: {
-    height: '100%',
-    borderRadius: 2,
+    color: colors.textPrimary,
   },
 });

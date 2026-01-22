@@ -9,16 +9,66 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
+import Svg, { Path } from 'react-native-svg';
+import { colors } from '@/constants/Colors';
 
 type WorkoutType = 'Push' | 'Pull' | 'Legs' | 'Full Body';
 type GoalMode = 'Strength' | 'Hypertrophy' | 'Endurance';
 
-const WORKOUT_TYPES: { type: WorkoutType; icon: string }[] = [
-  { type: 'Push', icon: '↑' },
-  { type: 'Pull', icon: '↓' },
-  { type: 'Legs', icon: '🦵' },
-  { type: 'Full Body', icon: '🏋️' },
+// Custom SVG Icons
+function CloseIcon({ size = 24, color = colors.textMuted }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6L6 18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M6 6L18 18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function PushIcon({ size = 28 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 19V5" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" />
+      <Path d="M5 12L12 5L19 12" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function PullIcon({ size = 28 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 5V19" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" />
+      <Path d="M5 12L12 19L19 12" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function LegsIcon({ size = 28 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 4V10C8 12 6 14 6 18C6 20 7 21 8 21" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M16 4V10C16 12 18 14 18 18C18 20 17 21 16 21" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function FullBodyIcon({ size = 28 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2Z" stroke={colors.textPrimary} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M12 8V14" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" />
+      <Path d="M8 10L16 10" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" />
+      <Path d="M12 14L9 22" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" />
+      <Path d="M12 14L15 22" stroke={colors.textPrimary} strokeWidth={2.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+const WORKOUT_TYPES: { type: WorkoutType; icon: 'push' | 'pull' | 'legs' | 'full' }[] = [
+  { type: 'Push', icon: 'push' },
+  { type: 'Pull', icon: 'pull' },
+  { type: 'Legs', icon: 'legs' },
+  { type: 'Full Body', icon: 'full' },
 ];
 
 const GOAL_MODES: { mode: GoalMode; reps: string; description: string }[] = [
@@ -29,8 +79,6 @@ const GOAL_MODES: { mode: GoalMode; reps: string; description: string }[] = [
 
 export default function NewWorkoutScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   const [selectedType, setSelectedType] = useState<WorkoutType | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalMode | null>(null);
@@ -51,14 +99,22 @@ export default function NewWorkoutScreen() {
     router.back();
   };
 
+  const renderTypeIcon = (icon: string) => {
+    if (icon === 'push') return <PushIcon />;
+    if (icon === 'pull') return <PullIcon />;
+    if (icon === 'legs') return <LegsIcon />;
+    if (icon === 'full') return <FullBodyIcon />;
+    return null;
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-          <Text style={[styles.closeIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>✕</Text>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton} accessibilityLabel="Close">
+          <CloseIcon />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+        <Text style={styles.title}>
           Workout Setup
         </Text>
         <View style={styles.placeholder} />
@@ -67,7 +123,7 @@ export default function NewWorkoutScreen() {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {/* Workout Type */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.sectionTitle}>
             Workout Type
           </Text>
           <View style={styles.typeGrid}>
@@ -78,17 +134,15 @@ export default function NewWorkoutScreen() {
                   key={type}
                   style={[
                     styles.typeCard,
-                    { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
                     isSelected && styles.typeCardSelected,
                   ]}
                   onPress={() => setSelectedType(type)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.typeIcon}>{icon}</Text>
+                  {renderTypeIcon(icon)}
                   <Text
                     style={[
                       styles.typeText,
-                      { color: isDark ? '#F9FAFB' : '#111827' },
                       isSelected && styles.typeTextSelected,
                     ]}
                   >
@@ -102,7 +156,7 @@ export default function NewWorkoutScreen() {
 
         {/* Goal Mode */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.sectionTitle}>
             Goal Mode
           </Text>
           <View style={styles.goalList}>
@@ -113,7 +167,6 @@ export default function NewWorkoutScreen() {
                   key={mode}
                   style={[
                     styles.goalCard,
-                    { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' },
                     isSelected && styles.goalCardSelected,
                   ]}
                   onPress={() => setSelectedGoal(mode)}
@@ -127,13 +180,12 @@ export default function NewWorkoutScreen() {
                       <Text
                         style={[
                           styles.goalTitle,
-                          { color: isDark ? '#F9FAFB' : '#111827' },
                           isSelected && styles.goalTitleSelected,
                         ]}
                       >
                         {mode}
                       </Text>
-                      <Text style={[styles.goalDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                      <Text style={styles.goalDescription}>
                         {description}
                       </Text>
                     </View>
@@ -151,19 +203,19 @@ export default function NewWorkoutScreen() {
 
         {/* Power-Ups */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.sectionTitle}>
             Power-Ups
           </Text>
           <View style={styles.powerUpRow}>
             {[1, 2, 3].map((slot) => (
               <TouchableOpacity
                 key={slot}
-                style={[styles.powerUpSlot, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+                style={styles.powerUpSlot}
                 onPress={() => setShowPowerUpModal(true)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.powerUpPlus, { color: isDark ? '#4B5563' : '#9CA3AF' }]}>+</Text>
-                <Text style={[styles.powerUpLabel, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                <Text style={styles.powerUpPlus}>+</Text>
+                <Text style={styles.powerUpLabel}>
                   Slot {slot}
                 </Text>
               </TouchableOpacity>
@@ -196,12 +248,12 @@ export default function NewWorkoutScreen() {
           activeOpacity={1}
           onPress={() => setShowPowerUpModal(false)}
         >
-          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={styles.modalContent}>
             <Text style={styles.modalIcon}>🚀</Text>
-            <Text style={[styles.modalTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            <Text style={styles.modalTitle}>
               Power-Ups Coming Soon
             </Text>
-            <Text style={[styles.modalDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.modalDescription}>
               Boost your workouts with special power-ups in a future update!
             </Text>
             <TouchableOpacity
@@ -220,6 +272,7 @@ export default function NewWorkoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   header: {
     flexDirection: 'row',
@@ -231,13 +284,10 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
   },
-  closeIcon: {
-    fontSize: 24,
-    fontWeight: '300',
-  },
   title: {
     fontSize: 20,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   placeholder: {
     width: 40,
@@ -257,7 +307,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: colors.textSecondary,
   },
   // Workout Type
   typeGrid: {
@@ -273,20 +323,19 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 2,
     borderColor: 'transparent',
+    backgroundColor: colors.bgSecondary,
   },
   typeCardSelected: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-  },
-  typeIcon: {
-    fontSize: 28,
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '1A',
   },
   typeText: {
     fontSize: 13,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   typeTextSelected: {
-    color: '#10B981',
+    color: colors.accent,
   },
   // Goal Mode
   goalList: {
@@ -300,10 +349,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: 'transparent',
+    backgroundColor: colors.bgSecondary,
   },
   goalCardSelected: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '1A',
   },
   goalLeft: {
     flexDirection: 'row',
@@ -315,18 +365,18 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#6B7280',
+    borderColor: colors.textMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   radioOuterSelected: {
-    borderColor: '#10B981',
+    borderColor: colors.accent,
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
   },
   goalInfo: {
     gap: 2,
@@ -334,29 +384,31 @@ const styles = StyleSheet.create({
   goalTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   goalTitleSelected: {
-    color: '#10B981',
+    color: colors.accent,
   },
   goalDescription: {
     fontSize: 13,
+    color: colors.textSecondary,
   },
   repsBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(107, 114, 128, 0.15)',
+    backgroundColor: colors.bgTertiary,
   },
   repsBadgeSelected: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: colors.accent + '33',
   },
   repsText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   repsTextSelected: {
-    color: '#10B981',
+    color: colors.accent,
   },
   // Power-Ups
   powerUpRow: {
@@ -372,15 +424,18 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: 'rgba(107, 114, 128, 0.3)',
+    borderColor: colors.border,
+    backgroundColor: colors.bgSecondary,
   },
   powerUpPlus: {
     fontSize: 28,
     fontWeight: '300',
+    color: colors.textMuted,
   },
   powerUpLabel: {
     fontSize: 11,
     fontWeight: '500',
+    color: colors.textMuted,
   },
   // Footer
   footer: {
@@ -389,22 +444,16 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   startButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   startButtonDisabled: {
-    backgroundColor: '#6B7280',
-    shadowOpacity: 0,
+    backgroundColor: colors.textMuted,
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -421,6 +470,7 @@ const styles = StyleSheet.create({
     padding: 28,
     borderRadius: 20,
     alignItems: 'center',
+    backgroundColor: colors.bgSecondary,
   },
   modalIcon: {
     fontSize: 48,
@@ -431,21 +481,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
+    color: colors.textPrimary,
   },
   modalDescription: {
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
+    color: colors.textSecondary,
   },
   modalButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
   },
   modalButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -11,6 +11,7 @@ import Animated, {
 import { MUSCLE_XP_CONFIG } from '@/lib/muscle-xp';
 import { MuscleLevelBadge } from './MuscleLevelBadge';
 import { EstimatedMuscleXpGain } from '@/lib/muscle-xp';
+import { colors } from '@/constants/Colors';
 
 // Display names for muscle groups
 const MUSCLE_DISPLAY_NAMES: Record<string, string> = {
@@ -28,21 +29,6 @@ const MUSCLE_DISPLAY_NAMES: Record<string, string> = {
   'calves': 'Calves',
 };
 
-// Emoji icons for each muscle group
-const MUSCLE_ICONS: Record<string, string> = {
-  'chest': '🫁',
-  'upper back': '🔙',
-  'lower back': '⬇️',
-  'shoulders': '💪',
-  'biceps': '💪',
-  'triceps': '💪',
-  'forearms': '🤚',
-  'core': '🎯',
-  'quads': '🦵',
-  'hamstrings': '🦵',
-  'glutes': '🍑',
-  'calves': '🦶',
-};
 
 interface MuscleData {
   muscle: string;
@@ -56,7 +42,7 @@ interface AnimatedMuscleSectionProps {
   isAnimating: boolean;
   animationGains: EstimatedMuscleXpGain[] | null;
   onAnimationComplete: (gains: EstimatedMuscleXpGain[]) => void;
-  isDark: boolean;
+  isDark?: boolean; // No longer used but kept for backwards compatibility
 }
 
 const ANIMATION_DURATION = 500;
@@ -67,7 +53,6 @@ export function AnimatedMuscleSection({
   isAnimating,
   animationGains,
   onAnimationComplete,
-  isDark,
 }: AnimatedMuscleSectionProps) {
   const [currentMuscleIndex, setCurrentMuscleIndex] = useState(-1);
   const [displayLevels, setDisplayLevels] = useState<Record<string, number>>({});
@@ -214,7 +199,7 @@ export function AnimatedMuscleSection({
   return (
     <View style={styles.container}>
       {/* Section Title */}
-      <Text style={[styles.sectionTitle, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+      <Text style={styles.sectionTitle}>
         Muscle Groups Worked
       </Text>
 
@@ -231,16 +216,12 @@ export function AnimatedMuscleSection({
           return (
             <View
               key={muscle}
-              style={[styles.muscleCard, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+              style={styles.muscleCard}
             >
               <View style={styles.muscleHeader}>
                 <View style={styles.muscleInfo}>
-                  <Text style={styles.muscleIcon}>
-                    {MUSCLE_ICONS[muscle] || '💪'}
-                  </Text>
                   <Text style={[
                     styles.muscleName,
-                    { color: isDark ? '#F9FAFB' : '#111827' },
                     isCurrentlyAnimating && styles.muscleNameAnimating,
                   ]}>
                     {MUSCLE_DISPLAY_NAMES[muscle] || muscle}
@@ -254,7 +235,7 @@ export function AnimatedMuscleSection({
                 />
               </View>
               <View style={styles.progressContainer}>
-                <View style={[styles.progressBg, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]}>
+                <View style={styles.progressBg}>
                   <Animated.View
                     style={[
                       styles.progressFill,
@@ -293,6 +274,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 10,
+    color: colors.textMuted,
   },
   muscleCards: {
     gap: 8,
@@ -300,6 +282,7 @@ const styles = StyleSheet.create({
   muscleCard: {
     padding: 10,
     borderRadius: 10,
+    backgroundColor: colors.bgTertiary,
   },
   muscleHeader: {
     flexDirection: 'row',
@@ -312,12 +295,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  muscleIcon: {
-    fontSize: 18,
-  },
   muscleName: {
     fontSize: 15,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   muscleNameAnimating: {
     fontWeight: '700',
@@ -329,20 +310,21 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     overflow: 'hidden',
+    backgroundColor: colors.border,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     borderRadius: 3,
   },
   progressFillMax: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warning,
   },
   progressFillResting: {
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.textMuted,
   },
   progressFillLevelUp: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.accent,
   },
   levelUpContainer: {
     position: 'absolute',
@@ -358,7 +340,7 @@ const styles = StyleSheet.create({
   levelUpText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#F59E0B',
+    color: colors.accent,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,

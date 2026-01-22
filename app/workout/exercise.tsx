@@ -7,9 +7,9 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { showAlert } from '@/lib/alert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore, kgToLbs } from '@/stores/settings.store';
@@ -18,14 +18,38 @@ import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
 import AnimatedSetRow from '@/components/workout/AnimatedSetRow';
 import { PointsResult } from '@/lib/points-engine/types';
+import { colors } from '@/constants/Colors';
+
+// Custom SVG Icons
+function TrashIcon({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 6H5H21" stroke={colors.accent} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke={colors.accent} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function CheckIcon({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M20 6L9 17L4 12" stroke={colors.accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function StarIcon({ size = 12 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={colors.accent}>
+      <Path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+    </Svg>
+  );
+}
 
 export default function ExerciseDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ index: string }>();
   const exerciseIndex = parseInt(params.index || '0', 10);
-
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   const { user, profile, userStats } = useAuthStore();
   const { weightUnit } = useSettingsStore();
@@ -138,10 +162,10 @@ export default function ExerciseDetailScreen() {
 
   if (!activeWorkout || !currentExercise) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerButton} />
-          <Text style={[styles.headerTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+          <Text style={styles.headerTitle}>
             Exercise
           </Text>
           <TouchableOpacity
@@ -149,11 +173,11 @@ export default function ExerciseDetailScreen() {
             style={styles.headerButton}
             accessibilityLabel="Go back"
           >
-            <Text style={styles.checkIcon}>✓</Text>
+            <CheckIcon />
           </TouchableOpacity>
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.emptyText}>
             Exercise not found
           </Text>
         </View>
@@ -165,7 +189,7 @@ export default function ExerciseDetailScreen() {
   const exercisePoints = currentExercise.sets.reduce((sum, set) => sum + set.pointsEarned, 0);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -173,13 +197,13 @@ export default function ExerciseDetailScreen() {
           style={styles.headerButton}
           accessibilityLabel="Remove exercise"
         >
-          <Text style={styles.trashIcon}>🗑</Text>
+          <TrashIcon />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: isDark ? '#F9FAFB' : '#111827' }]} numberOfLines={1}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
             {currentExercise.exercise.name}
           </Text>
-          <Text style={[styles.headerSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={styles.headerSubtitle}>
             {currentExercise.exercise.muscle_group}
           </Text>
         </View>
@@ -188,7 +212,7 @@ export default function ExerciseDetailScreen() {
           style={styles.headerButton}
           accessibilityLabel="Complete exercise"
         >
-          <Text style={styles.checkIcon}>✓</Text>
+          <CheckIcon />
         </TouchableOpacity>
       </View>
 
@@ -197,31 +221,30 @@ export default function ExerciseDetailScreen() {
         timeRemaining={restTimeRemaining}
         isActive={isRestTimerActive}
         onStop={stopRestTimer}
-        isDark={isDark}
       />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {/* Exercise Stats */}
-        <View style={[styles.statsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={styles.statsCard}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+            <Text style={styles.statValue}>
               {currentExercise.sets.length}
             </Text>
-            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>sets</Text>
+            <Text style={styles.statLabel}>sets</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: '#10B981' }]}>
+            <Text style={styles.statValueAccent}>
               {exercisePoints}
             </Text>
-            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>pts</Text>
+            <Text style={styles.statLabel}>pts</Text>
           </View>
         </View>
 
         {/* Completed Sets */}
         {currentExercise.sets.length > 0 && (
           <View style={styles.completedSets}>
-            <Text style={[styles.completedTitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            <Text style={styles.completedTitle}>
               Completed Sets
             </Text>
             {currentExercise.sets.map((set, index) => {
@@ -237,7 +260,6 @@ export default function ExerciseDetailScreen() {
                     weightUnit={weightUnit}
                     pointsResult={animatingPointsResult}
                     onAnimationComplete={handleAnimationComplete}
-                    isDark={isDark}
                   />
                 );
               }
@@ -246,18 +268,18 @@ export default function ExerciseDetailScreen() {
               return (
                 <View
                   key={set.id}
-                  style={[styles.completedSet, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+                  style={styles.completedSet}
                 >
-                  <Text style={[styles.setNumber, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  <Text style={styles.setNumber}>
                     {index + 1}
                   </Text>
-                  <Text style={[styles.setDetails, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+                  <Text style={styles.setDetails}>
                     {set.isBodyweight
                       ? `${set.reps} reps`
                       : `${set.weight}${weightUnit} × ${set.reps}`}
                   </Text>
                   <View style={styles.setPoints}>
-                    <Text style={styles.starIcon}>★</Text>
+                    <StarIcon />
                     <Text style={styles.setPointsText}>{set.pointsEarned}</Text>
                   </View>
                 </View>
@@ -291,7 +313,6 @@ export default function ExerciseDetailScreen() {
           historicalReps={historicalBestSet?.reps}
           onLogSet={handleLogSet}
           onStartRest={startRestTimer}
-          isDark={isDark}
         />
       </ScrollView>
     </SafeAreaView>
@@ -301,6 +322,7 @@ export default function ExerciseDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   header: {
     flexDirection: 'row',
@@ -309,7 +331,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(55, 65, 81, 0.3)',
+    borderBottomColor: colors.border,
   },
   headerButton: {
     padding: 8,
@@ -318,14 +340,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  trashIcon: {
-    fontSize: 20,
-  },
-  checkIcon: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#10B981',
-  },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
@@ -333,10 +347,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.textPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
     marginTop: 2,
+    color: colors.textSecondary,
   },
   content: {
     flex: 1,
@@ -354,6 +370,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     gap: 24,
+    backgroundColor: colors.bgSecondary,
   },
   statItem: {
     flexDirection: 'row',
@@ -364,13 +381,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  statValueAccent: {
+    fontSize: 24,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    color: colors.accent,
   },
   statLabel: {
     fontSize: 14,
+    color: colors.textSecondary,
   },
   statDivider: {
     width: 1,
     height: 24,
+    backgroundColor: colors.border,
   },
   completedSets: {
     paddingHorizontal: 20,
@@ -382,6 +408,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
     marginTop: 8,
+    color: colors.textSecondary,
   },
   completedSet: {
     flexDirection: 'row',
@@ -389,31 +416,30 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     marginBottom: 6,
+    backgroundColor: colors.bgSecondary,
   },
   setNumber: {
     width: 24,
     fontSize: 14,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+    color: colors.textMuted,
   },
   setDetails: {
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
+    color: colors.textPrimary,
   },
   setPoints: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  starIcon: {
-    fontSize: 12,
-    color: '#10B981',
-  },
   setPointsText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: colors.accent,
     fontVariant: ['tabular-nums'],
   },
   emptyContainer: {
@@ -423,5 +449,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+    color: colors.textSecondary,
   },
 });

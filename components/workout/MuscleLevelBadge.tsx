@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '@/constants/Colors';
 
 interface MuscleLevelBadgeProps {
   level: number;
@@ -22,22 +23,22 @@ export function MuscleLevelBadge({ level, isMax, isResting, isLevelUp }: MuscleL
 
 const styles = StyleSheet.create({
   badge: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   badgeMax: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warning,
   },
   badgeResting: {
-    backgroundColor: '#6B7280',
+    backgroundColor: colors.textMuted,
   },
   badgeLevelUp: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.accent,
   },
   text: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],

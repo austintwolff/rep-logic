@@ -139,7 +139,7 @@ export const POINTS_CONFIG = {
 
   LEVELS: {
     MAX_LEVEL: 50,
-    BASE_XP: 100,
+    BASE_XP: 133, // Increased ~33% from 100
     GROWTH_RATE: 1.15,
   },
 

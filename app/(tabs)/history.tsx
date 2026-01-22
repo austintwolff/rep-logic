@@ -1,9 +1,42 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useAuthStore } from '@/stores/auth.store';
 import { getWorkoutHistory } from '@/services/workout.service';
+import { colors } from '@/constants/Colors';
+
+// Custom SVG Icons
+function ClockIcon({ size = 14 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" stroke={colors.textMuted} strokeWidth={2} />
+      <Path d="M12 6V12L16 14" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function ListIcon({ size = 14 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 6H21" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 12H21" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 18H21" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 6H3.01" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 12H3.01" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 18H3.01" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function StarIcon({ size = 14 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={colors.accent}>
+      <Path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+    </Svg>
+  );
+}
 
 interface WorkoutItem {
   id: string;
@@ -16,8 +49,7 @@ interface WorkoutItem {
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
 
   const [workouts, setWorkouts] = useState<WorkoutItem[]>([]);
@@ -63,34 +95,34 @@ export default function HistoryScreen() {
 
   const renderWorkout = ({ item }: { item: WorkoutItem }) => (
     <TouchableOpacity
-      style={[styles.workoutCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
+      style={styles.workoutCard}
       onPress={() => router.push(`/workout/${item.id}` as any)}
     >
       <View style={styles.workoutHeader}>
-        <Text style={[styles.workoutName, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+        <Text style={styles.workoutName}>
           {item.name}
         </Text>
-        <Text style={[styles.workoutDate, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+        <Text style={styles.workoutDate}>
           {formatDate(item.started_at)}
         </Text>
       </View>
 
       <View style={styles.workoutStats}>
         <View style={styles.stat}>
-          <Text style={[styles.statIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>⏱</Text>
-          <Text style={[styles.statText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <ClockIcon />
+          <Text style={styles.statText}>
             {formatDuration(item.duration_seconds)}
           </Text>
         </View>
         <View style={styles.stat}>
-          <Text style={[styles.statIcon, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>≡</Text>
-          <Text style={[styles.statText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          <ListIcon />
+          <Text style={styles.statText}>
             {item.workout_sets?.length || 0} sets
           </Text>
         </View>
         <View style={styles.stat}>
-          <Text style={[styles.statIconStar, { color: '#10B981' }]}>★</Text>
-          <Text style={[styles.statText, { color: '#10B981' }]}>
+          <StarIcon />
+          <Text style={styles.statTextAccent}>
             {item.total_points} pts
           </Text>
         </View>
@@ -100,11 +132,11 @@ export default function HistoryScreen() {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={[styles.emptyIcon, { color: isDark ? '#374151' : '#D1D5DB' }]}>↺</Text>
-      <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827' }]}>
+      <Text style={styles.emptyIcon}>↺</Text>
+      <Text style={styles.emptyTitle}>
         No workouts yet
       </Text>
-      <Text style={[styles.emptyDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+      <Text style={styles.emptyDescription}>
         Start your first workout to see your history here
       </Text>
     </View>
@@ -112,19 +144,19 @@ export default function HistoryScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.loadingContainer, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
-        <ActivityIndicator size="large" color="#10B981" />
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+    <View style={styles.container}>
       <FlatList
         data={workouts}
         renderItem={renderWorkout}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingTop: insets.top + 20 }]}
         ListEmptyComponent={renderEmpty}
         onRefresh={loadWorkouts}
         refreshing={isLoading}
@@ -136,6 +168,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -149,11 +182,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.bgSecondary,
   },
   workoutHeader: {
     flexDirection: 'row',
@@ -164,9 +193,11 @@ const styles = StyleSheet.create({
   workoutName: {
     fontSize: 18,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   workoutDate: {
     fontSize: 14,
+    color: colors.textSecondary,
   },
   workoutStats: {
     flexDirection: 'row',
@@ -177,15 +208,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  statIcon: {
-    fontSize: 14,
-  },
-  statIconStar: {
-    fontSize: 14,
-  },
   statText: {
     fontSize: 14,
     fontVariant: ['tabular-nums'],
+    color: colors.textMuted,
+  },
+  statTextAccent: {
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+    color: colors.accent,
   },
   emptyContainer: {
     flex: 1,
@@ -195,16 +226,19 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 48,
+    color: colors.bgTertiary,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
     marginTop: 16,
     marginBottom: 8,
+    color: colors.textPrimary,
   },
   emptyDescription: {
     fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 40,
+    color: colors.textSecondary,
   },
 });

@@ -1,7 +1,7 @@
 // Polyfill for crypto.getRandomValues() needed by uuid
 import 'react-native-get-random-values';
 
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -10,8 +10,8 @@ import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@/stores/auth.store';
+import { colors } from '@/constants/Colors';
 
 export {
   ErrorBoundary,
@@ -33,6 +33,20 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Custom dark theme with our color scheme
+const CustomDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.accent,
+    background: colors.bgPrimary,
+    card: colors.bgSecondary,
+    text: colors.textPrimary,
+    border: colors.border,
+    notification: colors.accent,
+  },
+};
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -62,7 +76,7 @@ export default function RootLayout() {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingLogo}>Rep Logic</Text>
-        <ActivityIndicator size="large" color="#10B981" style={styles.loadingSpinner} />
+        <ActivityIndicator size="large" color={colors.accent} style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -77,14 +91,14 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: colors.bgPrimary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingLogo: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#10B981',
+    color: colors.accent,
     marginBottom: 24,
   },
   loadingSpinner: {
@@ -93,7 +107,6 @@ const styles = StyleSheet.create({
 });
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
   const session = useAuthStore((state) => state.session);
   const isLoading = useAuthStore((state) => state.isLoading);
   const segments = useSegments();
@@ -115,7 +128,7 @@ function RootLayoutNav() {
   }, [session, segments, isLoading]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={CustomDarkTheme}>
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
