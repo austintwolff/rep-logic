@@ -66,12 +66,21 @@ export type BonusType =
   | 'hypertrophy_rep_range'
   | 'workout_streak'
   | 'weekly_consistency'
-  | 'volume_scaling';
+  | 'volume_scaling'
+  | 'rune_pr_hunter'
+  | 'rune_effect'
+  | 'charm_pr_bonus'
+  | 'charm_first_set'
+  | 'charm_compound'
+  | 'charm_volume'
+  | 'charm_streak'
+  | 'charm_effect';
 
 export interface PointBonus {
   type: BonusType;
   multiplier: number;
   description: string;
+  flatBonus?: number; // For bonuses that add flat points instead of multipliers
 }
 
 export interface MusclePointsBreakdown {
@@ -121,8 +130,8 @@ export const POINTS_CONFIG = {
   },
 
   VOLUME_SCALING: {
-    FULL_VALUE_SETS: 6,
-    REDUCED_VALUE_SETS: 10,
+    FULL_VALUE_SETS: 10,
+    REDUCED_VALUE_SETS: 14,
     REDUCED_MULTIPLIER: 0.75,
     MINIMAL_MULTIPLIER: 0.5,
   },

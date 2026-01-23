@@ -18,7 +18,7 @@ import { useWorkoutStore } from '@/stores/workout.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { getUserMuscleLevels } from '@/services/baseline.service';
-import { fetchExercisesFromDatabase, saveWorkoutToDatabase } from '@/services/workout.service';
+import { fetchExercisesFromDatabase, saveWorkoutToDatabase, getUserCharms } from '@/services/workout.service';
 import { DEFAULT_EXERCISES } from '@/constants/exercises';
 import { MuscleLevelBadge } from '@/components/workout/MuscleLevelBadge';
 import ExercisePicker from '@/components/workout/ExercisePicker';
@@ -34,6 +34,8 @@ import {
 } from '@/lib/muscle-xp';
 import { AnimatedMuscleSection } from '@/components/workout/AnimatedMuscleSection';
 import { getRecommendedExercises, getEquipmentType, EquipmentType } from '@/services/recommendation.service';
+import { evaluateCharmDrop, CharmDropResult, MuscleLevelData } from '@/lib/charm-drop';
+import { getCharmById, getCharmsByRarity, CharmDefinition } from '@/lib/charms';
 
 const DECK_LIMIT = 15; // Max exercises shown in deck view
 
@@ -166,7 +168,7 @@ function SearchIcon({ size = 16 }: { size?: number }) {
 
 export default function ExerciseDeckScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ name?: string; goal?: string }>();
+  const params = useLocalSearchParams<{ name?: string; goal?: string; rune?: string }>();
 
   // Always use dark theme
   const isDark = true;
@@ -204,11 +206,14 @@ export default function ExerciseDeckScreen() {
 
   // Charm reveal state
   const [showCharmReveal, setShowCharmReveal] = useState(false);
+  const [charmDropResult, setCharmDropResult] = useState<CharmDropResult | null>(null);
+  const [droppedCharm, setDroppedCharm] = useState<CharmDefinition | null>(null);
   const [pendingScoreAnimation, setPendingScoreAnimation] = useState<{
     exerciseId: string;
     cardIndex: number;
     pointsDelta: number;
   } | null>(null);
+  const [setsSinceLastCharm, setSetsSinceLastCharm] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
   const listViewRef = useRef<FlatList>(null);
@@ -216,8 +221,11 @@ export default function ExerciseDeckScreen() {
 
   const workoutName = params.name || 'Workout';
   const goalMode = params.goal as 'Strength' | 'Hypertrophy' | 'Endurance' | undefined;
+  const selectedRuneId = params.rune || null;
 
   const [isInitialized, setIsInitialized] = useState(false);
+  const [equippedCharmIds, setEquippedCharmIds] = useState<string[]>([]);
+  const [charmsLoaded, setCharmsLoaded] = useState(false);
 
   // Elapsed time timer
   useEffect(() => {
@@ -322,21 +330,103 @@ export default function ExerciseDeckScreen() {
     }, duration / steps);
   }, [activeWorkout, exercises, workoutMuscleGroups, addExercise]);
 
-  // Handle exercise completion - mark complete, show charm reveal
+  // Handle exercise completion - mark complete, evaluate charm drop, show reveal if dropped
   const handleExerciseComplete = useCallback((exerciseId: string, cardIndex: number, pointsDelta: number) => {
     if (!activeWorkout || !profile?.id) return;
+
+    // Get the completed exercise's sets
+    const exerciseItem = activeWorkout.exercises.find(ex => ex.id === exerciseId);
+    if (!exerciseItem) return;
 
     // Mark exercise as completed (card darkens)
     markExerciseCompleted(exerciseId);
 
+    // Get muscles involved in this exercise
+    const muscles = getExerciseMuscles(exerciseItem.exercise);
+
+    // Build muscle level data for gating (access muscleLevels directly to avoid ordering issues)
+    const muscleData: MuscleLevelData[] = muscles.map(muscle => {
+      const found = muscleLevels.find(
+        m => m.muscle_group.toLowerCase() === muscle.toLowerCase()
+      );
+      return {
+        muscleGroup: muscle,
+        level: found?.current_level ?? 0,
+      };
+    });
+
+    // Evaluate charm drop with gating and pity system
+    const dropResult = evaluateCharmDrop({
+      sets: exerciseItem.sets,
+      workoutGoal: activeWorkout.goal,
+      muscles,
+      muscleLevels: muscleData,
+      setsSinceLastCharm,
+    });
+
+    // Log the result for debugging/tuning
+    console.log('[CharmDrop] Result:', {
+      exerciseName: exerciseItem.exercise.name,
+      muscles,
+      ...dropResult,
+    });
+
+    // Log pity info
+    const p = dropResult.debug.pity;
+    console.log('[CharmDrop] Pity:', {
+      setsSinceLastCharm: p.setsSinceLastCharm,
+      pityBonus: p.pityBonus,
+      wasGuaranteed: p.wasGuaranteed,
+    });
+
+    // Log gating info if a drop occurred
+    if (dropResult.didDrop && dropResult.debug.gating) {
+      const g = dropResult.debug.gating;
+      console.log('[CharmDrop] Gating:', {
+        gatingLevel: g.gatingLevel,
+        maxAllowedRarity: g.maxAllowedRarity,
+        rolledRarity: g.rolledRarity,
+        finalRarity: g.finalRarity,
+        wasDowngraded: g.wasDowngraded,
+      });
+    }
+
+    // Update pity counter
+    if (dropResult.didDrop) {
+      // Reset pity counter on successful drop
+      setSetsSinceLastCharm(0);
+    } else {
+      // Add this exercise's sets to the pity counter
+      setSetsSinceLastCharm(prev => prev + dropResult.setsToAddToPity);
+    }
+
     // Store the pending score animation data
     setPendingScoreAnimation({ exerciseId, cardIndex, pointsDelta });
 
-    // Show charm reveal animation (for testing, always show)
-    setTimeout(() => {
-      setShowCharmReveal(true);
-    }, 300); // Small delay after card greys out
-  }, [activeWorkout, profile?.id, markExerciseCompleted]);
+    // Only show charm reveal if a drop occurred
+    if (dropResult.didDrop) {
+      setCharmDropResult(dropResult);
+
+      // Pick a random charm of the dropped rarity
+      if (dropResult.rarity) {
+        const charmsOfRarity = getCharmsByRarity(dropResult.rarity);
+        if (charmsOfRarity.length > 0) {
+          const randomCharm = charmsOfRarity[Math.floor(Math.random() * charmsOfRarity.length)];
+          setDroppedCharm(randomCharm);
+        }
+      }
+
+      setTimeout(() => {
+        setShowCharmReveal(true);
+      }, 300); // Small delay after card greys out
+    } else {
+      // No drop - skip charm reveal and go straight to score animation
+      setCharmDropResult(null);
+      setTimeout(() => {
+        runScoreAnimationAndScroll(exerciseId, cardIndex, pointsDelta);
+      }, 300);
+    }
+  }, [activeWorkout, profile?.id, markExerciseCompleted, runScoreAnimationAndScroll, muscleLevels, setsSinceLastCharm]);
 
   // Handle charm collection
   const handleCharmCollect = useCallback(() => {
@@ -347,6 +437,8 @@ export default function ExerciseDeckScreen() {
   // Handle charm reveal animation complete (rip closes)
   const handleCharmAnimationComplete = useCallback(() => {
     setShowCharmReveal(false);
+    setCharmDropResult(null);
+    setDroppedCharm(null);
 
     // Now run the score animation and scroll
     if (pendingScoreAnimation) {
@@ -501,13 +593,29 @@ export default function ExerciseDeckScreen() {
     loadMuscleLevels();
   }, [profile?.id]);
 
-  // Initialize workout on mount
+  // Load equipped charms on mount
   useEffect(() => {
-    if (!activeWorkout && !isInitialized) {
-      const goal: GoalBucket = goalMode || 'Hypertrophy';
-      startWorkout(workoutName, goal);
+    async function loadEquippedCharms() {
+      if (!profile?.id) return;
+      try {
+        const charms = await getUserCharms(profile.id);
+        const equipped = charms.filter(c => c.equipped).map(c => c.charmId);
+        setEquippedCharmIds(equipped);
+      } catch (error) {
+        console.error('Error loading equipped charms:', error);
+      }
+      setCharmsLoaded(true);
     }
-  }, [activeWorkout, workoutName, goalMode, isInitialized]);
+    loadEquippedCharms();
+  }, [profile?.id]);
+
+  // Initialize workout on mount (after charms are loaded)
+  useEffect(() => {
+    if (!activeWorkout && !isInitialized && charmsLoaded) {
+      const goal: GoalBucket = goalMode || 'Hypertrophy';
+      startWorkout(workoutName, goal, selectedRuneId, equippedCharmIds);
+    }
+  }, [activeWorkout, workoutName, goalMode, selectedRuneId, isInitialized, charmsLoaded, equippedCharmIds]);
 
   // Load exercises and populate deck based on workout type with recommendations
   useEffect(() => {
@@ -634,6 +742,7 @@ export default function ExerciseDeckScreen() {
                 totalPoints: result.workout.totalPoints,
                 completionBonus: result.completionBonus,
                 weightUnit,
+                selectedRuneId,
               });
 
               if (!saveResult.success) {
@@ -1115,13 +1224,13 @@ export default function ExerciseDeckScreen() {
         workoutName={workoutName}
       />
 
-      {/* Charm Rip Reveal Animation */}
+      {/* Charm Reveal Animation */}
       <CharmRipReveal
         visible={showCharmReveal}
-        cardWidth={CARD_WIDTH}
-        cardHeight={500}
-        charmTitle="Rage Charm"
-        charmDescription="Next PR: +25% points"
+        charmTitle={droppedCharm?.name ?? 'Mystery Charm'}
+        charmDescription={droppedCharm?.description ?? `Tier ${charmDropResult?.qualityTier ?? 0} Drop`}
+        charmImage={droppedCharm?.image}
+        rarity={charmDropResult?.rarity ?? 'Common'}
         onCollect={handleCharmCollect}
         onAnimationComplete={handleCharmAnimationComplete}
       />

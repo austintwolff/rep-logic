@@ -644,3 +644,154 @@ export async function awardSetMuscleXp(
 
   return results;
 }
+
+// ============================================================================
+// BATCHED MUSCLE XP AWARDS (OPTIMIZED)
+// ============================================================================
+
+interface SetXpInput {
+  exerciseName: string;
+  primaryMuscle: string;
+  isPR: boolean;
+}
+
+/**
+ * Award muscle XP for multiple sets at once, minimizing DB calls.
+ * This is much faster than calling awardSetMuscleXp for each set individually.
+ *
+ * @param userId - User to award XP to
+ * @param sets - Array of sets with exercise info and PR status
+ * @param rolling7DayCounts - Pre-fetched rolling counts (will be mutated to track diminishing returns)
+ */
+export async function awardBatchMuscleXp(
+  userId: string,
+  sets: SetXpInput[],
+  rolling7DayCounts: Map<string, number>
+): Promise<void> {
+  if (sets.length === 0) return;
+
+  const { calculateSetMuscleXp, createMuscleTags } = await import('@/lib/muscle-xp');
+
+  // 1. Get unique exercise names and fetch all muscle mappings at once
+  const uniqueExercises = [...new Set(sets.map(s => s.exerciseName))];
+
+  const { data: muscleMapData } = await db
+    .from('exercise_muscle_map')
+    .select('exercise_name, muscle_group, muscle_order')
+    .in('exercise_name', uniqueExercises)
+    .order('muscle_order', { ascending: true });
+
+  // Build exercise -> muscles map
+  const exerciseMuscleMap = new Map<string, MuscleTag[]>();
+  if (muscleMapData) {
+    for (const row of muscleMapData) {
+      const muscles = exerciseMuscleMap.get(row.exercise_name) || [];
+      muscles.push({ muscleGroup: row.muscle_group, order: row.muscle_order || 1 });
+      exerciseMuscleMap.set(row.exercise_name, muscles);
+    }
+  }
+
+  // 2. Calculate all XP changes per muscle
+  const xpByMuscle = new Map<string, number>();
+  const countsCopy = new Map(rolling7DayCounts);
+
+  for (const set of sets) {
+    const exerciseMuscles = exerciseMuscleMap.get(set.exerciseName) || [];
+    const muscleTags = createMuscleTags(
+      exerciseMuscles.map(m => ({ muscleGroup: m.muscleGroup, order: m.order })),
+      set.primaryMuscle
+    );
+
+    const xpResults = calculateSetMuscleXp(muscleTags, countsCopy, set.isPR);
+
+    for (const result of xpResults) {
+      if (result.finalXp > 0) {
+        const current = xpByMuscle.get(result.muscleGroup) || 0;
+        xpByMuscle.set(result.muscleGroup, current + result.finalXp);
+      }
+    }
+
+    // Update counts for diminishing returns
+    const muscleKey = set.primaryMuscle.toLowerCase();
+    const currentCount = countsCopy.get(muscleKey) || 0;
+    countsCopy.set(muscleKey, currentCount + 1);
+  }
+
+  // 3. Pre-fetch all muscle levels for this user
+  const musclesToUpdate = [...xpByMuscle.keys()];
+  if (musclesToUpdate.length === 0) return;
+
+  const { data: existingLevels } = await db
+    .from('muscle_levels')
+    .select('*')
+    .eq('user_id', userId)
+    .in('muscle_group', musclesToUpdate);
+
+  const levelMap = new Map<string, MuscleLevel>();
+  if (existingLevels) {
+    for (const level of existingLevels) {
+      levelMap.set(level.muscle_group.toLowerCase(), level);
+    }
+  }
+
+  // 4. Create any missing muscle level records
+  const missingMuscles = musclesToUpdate.filter(m => !levelMap.has(m.toLowerCase()));
+  if (missingMuscles.length > 0) {
+    const newRecords = missingMuscles.map(muscleGroup => ({
+      user_id: userId,
+      muscle_group: muscleGroup.toLowerCase(),
+      current_level: 0,
+      current_xp: 0,
+      total_xp_earned: 0,
+    }));
+
+    const { data: created } = await db
+      .from('muscle_levels')
+      .insert(newRecords)
+      .select();
+
+    if (created) {
+      for (const level of created) {
+        levelMap.set(level.muscle_group.toLowerCase(), level);
+      }
+    }
+  }
+
+  // 5. Calculate new levels and batch update
+  const now = new Date().toISOString();
+  const updatePromises: Promise<any>[] = [];
+
+  for (const [muscleGroup, xpGained] of xpByMuscle) {
+    const muscleLevel = levelMap.get(muscleGroup.toLowerCase());
+    if (!muscleLevel) continue;
+
+    const newTotalXp = muscleLevel.total_xp_earned + xpGained;
+    const { level: newLevel, currentXp } = calculateMuscleLevelFromXp(newTotalXp);
+    const cappedLevel = Math.min(newLevel, MUSCLE_XP_CONFIG.MAX_LEVEL);
+
+    updatePromises.push(
+      db
+        .from('muscle_levels')
+        .update({
+          current_level: cappedLevel,
+          current_xp: currentXp,
+          total_xp_earned: newTotalXp,
+          last_trained_at: now,
+          updated_at: now,
+        })
+        .eq('id', muscleLevel.id)
+    );
+  }
+
+  // Run all updates in parallel (use allSettled to not fail on partial errors)
+  const results = await Promise.allSettled(updatePromises);
+  const failures = results.filter(r => r.status === 'rejected');
+  if (failures.length > 0) {
+    console.error(`[Baseline] ${failures.length} muscle level updates failed`);
+  }
+
+  // Update the original counts map
+  for (const [key, value] of countsCopy) {
+    rolling7DayCounts.set(key, value);
+  }
+}

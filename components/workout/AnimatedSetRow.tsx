@@ -20,6 +20,14 @@ const MULTIPLIER_COLORS = {
   workout_streak: colors.info,               // Blue
   volume_scaling: colors.accentLight,        // Purple (same as rep range)
   weekly_consistency: colors.info,           // Blue
+  rune_pr_hunter: '#EAB308',                 // Gold - rune bonus
+  rune_effect: '#EAB308',                    // Gold - generic rune bonus
+  charm_pr_bonus: '#10B981',                 // Green - charm PR bonus
+  charm_first_set: '#10B981',                // Green - charm first set
+  charm_compound: '#10B981',                 // Green - charm compound
+  charm_volume: '#10B981',                   // Green - charm volume
+  charm_streak: '#10B981',                   // Green - charm streak
+  charm_effect: '#10B981',                   // Green - generic charm bonus
 } as const;
 
 interface AnimatedSetRowProps {
@@ -55,7 +63,7 @@ export default function AnimatedSetRow({
 
   // Get display-worthy bonuses (exclude volume_scaling penalty)
   const displayBonuses = pointsResult.bonuses.filter(
-    b => b.type !== 'volume_scaling' && b.multiplier > 0
+    b => b.type !== 'volume_scaling' && (b.multiplier > 0 || (b.flatBonus && b.flatBonus > 0))
   );
 
   // Calculate points at each phase
@@ -63,8 +71,15 @@ export default function AnimatedSetRow({
     if (phaseIndex < 0) return pointsResult.basePoints;
 
     let multiplier = 1;
+    let flatBonus = 0;
+
     for (let i = 0; i <= phaseIndex && i < displayBonuses.length; i++) {
-      multiplier += displayBonuses[i].multiplier;
+      const bonus = displayBonuses[i];
+      if (bonus.flatBonus) {
+        flatBonus += bonus.flatBonus;
+      } else {
+        multiplier += bonus.multiplier;
+      }
     }
 
     // Apply volume scaling if present
@@ -73,7 +88,7 @@ export default function AnimatedSetRow({
       multiplier *= volumeBonus.multiplier;
     }
 
-    return Math.floor(pointsResult.basePoints * multiplier);
+    return Math.floor(pointsResult.basePoints * multiplier) + flatBonus;
   };
 
   // Count up points animation
@@ -206,6 +221,9 @@ export default function AnimatedSetRow({
     : colors.accentLight;
 
   const formatMultiplier = (bonus: PointBonus): string => {
+    if (bonus.flatBonus) {
+      return `+${bonus.flatBonus}`;
+    }
     const multiplierValue = 1 + bonus.multiplier;
     return `×${multiplierValue.toFixed(2)}`;
   };
@@ -218,6 +236,22 @@ export default function AnimatedSetRow({
         return 'PR!';
       case 'workout_streak':
         return 'Streak';
+      case 'rune_pr_hunter':
+        return 'Rune';
+      case 'rune_effect':
+        return 'Rune';
+      case 'charm_pr_bonus':
+        return 'Charm';
+      case 'charm_first_set':
+        return 'First Rep';
+      case 'charm_compound':
+        return 'Compound';
+      case 'charm_volume':
+        return 'Volume';
+      case 'charm_streak':
+        return 'Streak';
+      case 'charm_effect':
+        return 'Charm';
       default:
         return '';
     }

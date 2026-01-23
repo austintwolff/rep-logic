@@ -3,7 +3,9 @@ import { WorkoutSet, WorkoutExercise } from '@/stores/workout.store';
 import { Database } from '@/types/database';
 import { WeightUnit, lbsToKg } from '@/stores/settings.store';
 import { GoalBucket, POINTS_CONFIG } from '@/lib/points-engine';
-import { updateGoalBucketPR, awardSetMuscleXp, getRolling7DayMuscleSets } from './baseline.service';
+import { updateGoalBucketPR, awardBatchMuscleXp, getRolling7DayMuscleSets } from './baseline.service';
+import { calculateCharmBonuses, ExerciseCharmContext, CharmBonusesResult } from '@/lib/scoring/charm-effects';
+import { calculateRuneBonuses, WorkoutRuneContext, RuneBonusesResult } from '@/lib/scoring/rune-effects';
 
 type WorkoutSessionInsert = Database['public']['Tables']['workout_sessions']['Insert'];
 type WorkoutSetInsert = Database['public']['Tables']['workout_sets']['Insert'];
@@ -24,12 +26,14 @@ interface SaveWorkoutParams {
   totalPoints: number;
   completionBonus: number;
   weightUnit: WeightUnit; // To convert display units to kg for storage
+  selectedRuneId?: string | null; // Optional rune selected for this workout
 }
 
 interface SaveWorkoutResult {
   success: boolean;
   sessionId?: string;
   error?: string;
+  charmRuneBonuses?: CharmRuneBonusResult;
 }
 
 export async function saveWorkoutToDatabase(
@@ -48,6 +52,7 @@ export async function saveWorkoutToDatabase(
     totalPoints,
     completionBonus,
     weightUnit,
+    selectedRuneId,
   } = params;
 
   // Helper to convert weight to kg for database storage
@@ -57,6 +62,18 @@ export async function saveWorkoutToDatabase(
   };
 
   try {
+    // 0. Calculate charm and rune bonuses
+    const charmRuneBonuses = await calculateCharmAndRuneBonuses({
+      userId,
+      goal,
+      exercises,
+      baseWorkoutPoints: totalPoints,
+      selectedRuneId,
+    });
+
+    // Total points including charm and rune bonuses
+    const finalTotalPoints = totalPoints + charmRuneBonuses.totalBonusPoints;
+
     // 1. Create the workout session
     // Convert total volume to kg for storage
     const volumeInKg = weightUnit === 'lbs' ? lbsToKg(totalVolume) : totalVolume;
@@ -69,7 +86,7 @@ export async function saveWorkoutToDatabase(
       completed_at: completedAt.toISOString(),
       duration_seconds: durationSeconds,
       total_volume_kg: volumeInKg,
-      total_points: totalPoints,
+      total_points: finalTotalPoints,
     };
 
     const { data: session, error: sessionError } = await supabase
@@ -113,7 +130,8 @@ export async function saveWorkoutToDatabase(
       }
     }
 
-    // 2b. Update goal-bucket PRs for any sets that achieved a PR
+    // 2b. Update goal-bucket PRs for any sets that achieved a PR (batched)
+    const prUpdatePromises: Promise<void>[] = [];
     for (const exercise of exercises) {
       if (exercise.exercise.id.startsWith('local-')) continue; // Skip local exercises
 
@@ -126,31 +144,37 @@ export async function saveWorkoutToDatabase(
             ? weightKg * POINTS_CONFIG.BODYWEIGHT_FACTOR
             : weightKg;
 
-          await updateGoalBucketPR(userId, exercise.exercise.id, effectiveWeight, set.reps, goal);
+          prUpdatePromises.push(
+            updateGoalBucketPR(userId, exercise.exercise.id, effectiveWeight, set.reps, goal)
+          );
         }
       }
     }
+    // Run all PR updates in parallel (use allSettled to not fail on partial errors)
+    if (prUpdatePromises.length > 0) {
+      const results = await Promise.allSettled(prUpdatePromises);
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.error(`[Workout] ${failures.length} PR updates failed`);
+      }
+    }
 
-    // 2c. Award muscle XP for each set (includes warmup sets)
-    // Get rolling 7-day counts once for efficiency
+    // 2c. Award muscle XP for all sets (batched for efficiency)
+    // Get rolling 7-day counts once
     const rolling7DayCounts = await getRolling7DayMuscleSets(userId);
 
-    for (const exercise of exercises) {
-      for (const set of exercise.sets) {
-        await awardSetMuscleXp(
-          userId,
-          exercise.exercise.name,
-          exercise.exercise.muscle_group,
-          set.isPR,
-          rolling7DayCounts
-        );
+    // Collect all sets for batch processing
+    const setsForXp = exercises.flatMap(exercise =>
+      exercise.sets.map(set => ({
+        exerciseName: exercise.exercise.name,
+        primaryMuscle: exercise.exercise.muscle_group,
+        isPR: set.isPR,
+      }))
+    );
 
-        // Update rolling counts for subsequent sets in this workout
-        // This ensures diminishing returns apply within the same workout
-        const muscleKey = exercise.exercise.muscle_group.toLowerCase();
-        const currentCount = rolling7DayCounts.get(muscleKey) || 0;
-        rolling7DayCounts.set(muscleKey, currentCount + 1);
-      }
+    // Award XP in a single batched operation
+    if (setsForXp.length > 0) {
+      await awardBatchMuscleXp(userId, setsForXp, rolling7DayCounts);
     }
 
     // 3. Create point transactions
@@ -183,6 +207,44 @@ export async function saveWorkoutToDatabase(
         multiplier: 1.0,
         final_points: completionBonus,
         description: `Workout completion bonus`,
+      });
+    }
+
+    // Add charm bonus transactions
+    for (const charmBonus of charmRuneBonuses.charmBonuses) {
+      if (charmBonus.result.finalBonusPoints > 0) {
+        const triggeredCharms = charmBonus.result.bonuses
+          .filter((b) => b.triggered)
+          .map((b) => b.charmName)
+          .join(', ');
+
+        pointTransactions.push({
+          user_id: userId,
+          workout_session_id: sessionId,
+          transaction_type: 'charm_bonus',
+          base_points: charmBonus.result.finalBonusPoints,
+          multiplier: 1.0,
+          final_points: charmBonus.result.finalBonusPoints,
+          description: `Charm bonus on ${charmBonus.exerciseName}: ${triggeredCharms}`,
+        });
+      }
+    }
+
+    // Add rune bonus transaction
+    if (charmRuneBonuses.totalRunePoints > 0) {
+      const triggeredRunes = charmRuneBonuses.runeBonuses.bonuses
+        .filter((b) => b.triggered)
+        .map((b) => b.runeName)
+        .join(', ');
+
+      pointTransactions.push({
+        user_id: userId,
+        workout_session_id: sessionId,
+        transaction_type: 'rune_bonus',
+        base_points: charmRuneBonuses.totalRunePoints,
+        multiplier: 1.0,
+        final_points: charmRuneBonuses.totalRunePoints,
+        description: `Rune bonus: ${triggeredRunes}`,
       });
     }
 
@@ -236,8 +298,8 @@ export async function saveWorkoutToDatabase(
       }
 
       const statsUpdate: UserStatsUpdate = {
-        total_points: (currentStats.total_points || 0) + totalPoints,
-        weekly_points: (currentStats.weekly_points || 0) + totalPoints,
+        total_points: (currentStats.total_points || 0) + finalTotalPoints,
+        weekly_points: (currentStats.weekly_points || 0) + finalTotalPoints,
         total_workouts: (currentStats.total_workouts || 0) + 1,
         total_volume_kg: (currentStats.total_volume_kg || 0) + volumeInKg, // Use converted volume
         current_workout_streak: newStreak,
@@ -258,7 +320,7 @@ export async function saveWorkoutToDatabase(
       }
     }
 
-    return { success: true, sessionId };
+    return { success: true, sessionId, charmRuneBonuses };
   } catch (error) {
     console.error('Error saving workout:', error);
     return {
@@ -598,4 +660,296 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
     console.error('Error fetching leaderboard:', error);
     return [];
   }
+}
+
+// ============================================================================
+// CHARMS & RUNES
+// ============================================================================
+
+/**
+ * Get the equipped charm IDs for a user
+ */
+export async function getEquippedCharms(userId: string): Promise<string[]> {
+  const { data, error } = await (supabase
+    .from('user_charms') as any)
+    .select('charm_id')
+    .eq('user_id', userId)
+    .eq('equipped', true);
+
+  if (error) {
+    console.error('Error fetching equipped charms');
+    return [];
+  }
+
+  return data?.map((row: { charm_id: string }) => row.charm_id) || [];
+}
+
+/**
+ * Get the equipped rune IDs for a user
+ */
+export async function getEquippedRunes(userId: string): Promise<string[]> {
+  const { data, error } = await (supabase
+    .from('user_runes') as any)
+    .select('rune_id')
+    .eq('user_id', userId)
+    .eq('equipped', true);
+
+  if (error) {
+    console.error('Error fetching equipped runes');
+    return [];
+  }
+
+  return data?.map((row: { rune_id: string }) => row.rune_id) || [];
+}
+
+/**
+ * Get the number of workouts completed this week (Mon-Sun)
+ */
+export async function getWorkoutsThisWeek(userId: string): Promise<number> {
+  // Calculate the start of the current week (Monday)
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday is 0
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const { count, error } = await supabase
+    .from('workout_sessions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('completed_at', monday.toISOString());
+
+  if (error) {
+    console.error('Error fetching workouts this week:', error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
+/**
+ * Award a charm to a user (handles duplicates gracefully)
+ */
+export async function awardCharm(userId: string, charmId: string): Promise<boolean> {
+  const { error } = await (supabase
+    .from('user_charms') as any)
+    .upsert(
+      { user_id: userId, charm_id: charmId },
+      { onConflict: 'user_id,charm_id', ignoreDuplicates: true }
+    );
+
+  if (error) {
+    console.error('Error awarding charm');
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Award a rune to a user (handles duplicates gracefully)
+ */
+export async function awardRune(userId: string, runeId: string): Promise<boolean> {
+  const { error } = await (supabase
+    .from('user_runes') as any)
+    .upsert(
+      { user_id: userId, rune_id: runeId },
+      { onConflict: 'user_id,rune_id', ignoreDuplicates: true }
+    );
+
+  if (error) {
+    console.error('Error awarding rune');
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Equip or unequip a charm for a user
+ */
+export async function setCharmEquipped(userId: string, charmId: string, equipped: boolean): Promise<boolean> {
+  const { error } = await (supabase
+    .from('user_charms') as any)
+    .update({ equipped })
+    .eq('user_id', userId)
+    .eq('charm_id', charmId);
+
+  if (error) {
+    console.error('Error updating charm equipped state');
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Equip or unequip a rune for a user
+ */
+export async function setRuneEquipped(userId: string, runeId: string, equipped: boolean): Promise<boolean> {
+  const { error } = await (supabase
+    .from('user_runes') as any)
+    .update({ equipped })
+    .eq('user_id', userId)
+    .eq('rune_id', runeId);
+
+  if (error) {
+    console.error('Error updating rune equipped state');
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get all charms owned by a user
+ */
+export async function getUserCharms(userId: string): Promise<{ charmId: string; equipped: boolean; acquiredAt: string }[]> {
+  const { data, error } = await (supabase
+    .from('user_charms') as any)
+    .select('charm_id, equipped, acquired_at')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching user charms');
+    return [];
+  }
+
+  return data?.map((row: { charm_id: string; equipped: boolean; acquired_at: string }) => ({
+    charmId: row.charm_id,
+    equipped: row.equipped,
+    acquiredAt: row.acquired_at,
+  })) || [];
+}
+
+/**
+ * Get all runes owned by a user
+ */
+export async function getUserRunes(userId: string): Promise<{ runeId: string; equipped: boolean; acquiredAt: string }[]> {
+  const { data, error } = await (supabase
+    .from('user_runes') as any)
+    .select('rune_id, equipped, acquired_at')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching user runes');
+    return [];
+  }
+
+  return data?.map((row: { rune_id: string; equipped: boolean; acquired_at: string }) => ({
+    runeId: row.rune_id,
+    equipped: row.equipped,
+    acquiredAt: row.acquired_at,
+  })) || [];
+}
+
+// ============================================================================
+// CHARM & RUNE BONUS CALCULATION
+// ============================================================================
+
+export interface CharmRuneBonusParams {
+  userId: string;
+  goal: GoalBucket;
+  exercises: WorkoutExercise[];
+  baseWorkoutPoints: number;
+  selectedRuneId?: string | null; // Optional rune selected for this specific workout
+}
+
+export interface CharmRuneBonusResult {
+  charmBonuses: {
+    exerciseId: string;
+    exerciseName: string;
+    result: CharmBonusesResult;
+  }[];
+  runeBonuses: RuneBonusesResult;
+  totalCharmPoints: number;
+  totalRunePoints: number;
+  totalBonusPoints: number;
+}
+
+/**
+ * Calculate all charm and rune bonuses for a completed workout
+ */
+export async function calculateCharmAndRuneBonuses(
+  params: CharmRuneBonusParams
+): Promise<CharmRuneBonusResult> {
+  const { userId, goal, exercises, baseWorkoutPoints, selectedRuneId } = params;
+
+  // Fetch equipped charms and runes in parallel
+  const [equippedCharms, equippedRunesFromDb, workoutsThisWeek] = await Promise.all([
+    getEquippedCharms(userId),
+    getEquippedRunes(userId),
+    getWorkoutsThisWeek(userId),
+  ]);
+
+  // Use the selected rune for this workout if provided, otherwise use equipped runes
+  const equippedRunes = selectedRuneId ? [selectedRuneId] : equippedRunesFromDb;
+
+  // Calculate charm bonuses per exercise
+  const charmBonuses: CharmRuneBonusResult['charmBonuses'] = [];
+  let totalCharmPoints = 0;
+
+  for (const exercise of exercises) {
+    if (exercise.sets.length === 0) continue;
+
+    // Calculate base points for this exercise
+    const exerciseBasePoints = exercise.sets.reduce((sum, set) => sum + set.pointsEarned, 0);
+
+    // Build charm context for this exercise
+    const hasPR = exercise.sets.some((set) => set.isPR);
+    const muscleGroups = new Set<string>();
+    exercise.sets.forEach((set) => set.muscleGroups.forEach((m) => muscleGroups.add(m)));
+
+    const charmContext: ExerciseCharmContext = {
+      sets: exercise.sets,
+      workoutGoal: goal,
+      isCompound: exercise.exercise.is_compound,
+      muscleGroupCount: muscleGroups.size,
+      hasPR,
+      basePoints: exerciseBasePoints,
+    };
+
+    const result = calculateCharmBonuses(charmContext, equippedCharms);
+    totalCharmPoints += result.finalBonusPoints;
+
+    charmBonuses.push({
+      exerciseId: exercise.exercise.id,
+      exerciseName: exercise.exercise.name,
+      result,
+    });
+  }
+
+  // Calculate rune bonuses for the whole workout
+  const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+  const prCount = exercises.reduce(
+    (sum, ex) => sum + ex.sets.filter((s) => s.isPR).length,
+    0
+  );
+
+  // Count unique muscle groups across all exercises
+  const allMuscleGroups = new Set<string>();
+  for (const exercise of exercises) {
+    exercise.sets.forEach((set) => set.muscleGroups.forEach((m) => allMuscleGroups.add(m)));
+  }
+
+  const runeContext: WorkoutRuneContext = {
+    exerciseCount: exercises.length,
+    totalSets,
+    prCount,
+    muscleGroupCount: allMuscleGroups.size,
+    workoutsThisWeek: workoutsThisWeek + 1, // Including this workout
+    basePoints: baseWorkoutPoints + totalCharmPoints, // Runes apply after charm bonuses
+  };
+
+  const runeBonuses = calculateRuneBonuses(runeContext, equippedRunes);
+  const totalRunePoints = runeBonuses.finalBonusPoints;
+
+  return {
+    charmBonuses,
+    runeBonuses,
+    totalCharmPoints,
+    totalRunePoints,
+    totalBonusPoints: totalCharmPoints + totalRunePoints,
+  };
 }

@@ -3,6 +3,10 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Profile, UserStats } from '@/types/database';
 import { uploadAvatar, updateProfileInDatabase } from '@/services/profile.service';
+import { awardRune } from '@/services/workout.service';
+
+// Starter rune that all new users receive
+const STARTER_RUNE_ID = 'endurance';
 
 interface AuthState {
   session: Session | null;
@@ -116,7 +120,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signIn: async (email: string, password: string) => {
     set({ isLoading: true });
-    console.log('[Auth] Signing in...');
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -124,12 +127,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     if (error) {
-      console.error('[Auth] Sign in error:', error);
       set({ isLoading: false });
       throw error;
     }
-
-    console.log('[Auth] Sign in successful, user:', data.session?.user?.id);
 
     // Set session directly from response (don't wait for onAuthStateChange)
     set({
@@ -140,10 +140,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Fetch profile and stats
     if (data.session?.user) {
-      console.log('[Auth] Fetching profile and stats...');
       await get().fetchProfile();
       await get().fetchUserStats();
-      console.log('[Auth] Done fetching profile and stats');
     }
   },
 
@@ -169,11 +167,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchProfile: async () => {
     const user = get().user;
     if (!user) {
-      console.log('[Auth] fetchProfile: No user');
       return;
     }
 
-    console.log('[Auth] Fetching profile for user:', user.id);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -181,10 +177,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) {
-      console.error('[Auth] Error fetching profile:', error);
       // If profile doesn't exist, try to create it from user metadata
       if (error.code === 'PGRST116') {
-        console.log('[Auth] Profile not found, creating from user metadata');
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
@@ -196,27 +190,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .single();
 
         if (createError) {
-          console.error('[Auth] Error creating profile:', createError);
+          console.error('[Auth] Error creating profile');
           return;
         }
-        console.log('[Auth] Created profile:', newProfile);
         set({ profile: newProfile });
       }
       return;
     }
 
-    console.log('[Auth] Fetched profile:', data);
     set({ profile: data });
   },
 
   fetchUserStats: async () => {
     const user = get().user;
     if (!user) {
-      console.log('[Auth] fetchUserStats: No user');
       return;
     }
 
-    console.log('[Auth] Fetching user stats for user:', user.id);
     const { data, error } = await supabase
       .from('user_stats')
       .select('*')
@@ -224,10 +214,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (error) {
-      console.error('[Auth] Error fetching user stats:', error);
       // If user stats don't exist, create them
       if (error.code === 'PGRST116') {
-        console.log('[Auth] User stats not found, creating');
         const { data: newStats, error: createError } = await supabase
           .from('user_stats')
           .insert({
@@ -243,16 +231,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .single();
 
         if (createError) {
-          console.error('[Auth] Error creating user stats:', createError);
+          console.error('[Auth] Error creating user stats');
           return;
         }
-        console.log('[Auth] Created user stats:', newStats);
         set({ userStats: newStats });
+
+        // Award the starter rune to new users
+        await awardRune(user.id, STARTER_RUNE_ID);
       }
       return;
     }
 
-    console.log('[Auth] Fetched user stats:', data);
     set({ userStats: data });
   },
 
@@ -270,7 +259,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .eq('id', user.id);
 
     if (error) {
-      console.error('Error updating bodyweight:', error);
       throw error;
     }
 

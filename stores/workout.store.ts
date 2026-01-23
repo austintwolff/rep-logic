@@ -42,6 +42,8 @@ interface ActiveWorkout {
   totalPoints: number;
   totalVolume: number;
   muscleSetsCount: Map<string, number>; // Track sets per muscle group
+  selectedRuneId: string | null; // Rune selected for this workout
+  equippedCharmIds: string[]; // Charms equipped for this workout
 }
 
 interface WorkoutState {
@@ -53,7 +55,7 @@ interface WorkoutState {
   exerciseBaselines: Map<string, ExerciseBaselineData>; // Loaded baselines
 
   // Actions
-  startWorkout: (name: string, goal: GoalBucket) => void;
+  startWorkout: (name: string, goal: GoalBucket, selectedRuneId?: string | null, equippedCharmIds?: string[]) => void;
   endWorkout: () => { workout: ActiveWorkout; completionBonus: number } | null;
   cancelWorkout: () => void;
 
@@ -87,7 +89,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   lastPointsResult: null,
   exerciseBaselines: new Map(),
 
-  startWorkout: (name: string, goal: GoalBucket) => {
+  startWorkout: (name: string, goal: GoalBucket, selectedRuneId?: string | null, equippedCharmIds?: string[]) => {
     set({
       activeWorkout: {
         id: uuidv4(),
@@ -98,6 +100,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         totalPoints: 0,
         totalVolume: 0,
         muscleSetsCount: new Map(),
+        selectedRuneId: selectedRuneId || null,
+        equippedCharmIds: equippedCharmIds || [],
       },
       currentExerciseIndex: 0,
       isRestTimerActive: false,
@@ -264,6 +268,92 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       ? params.userBodyweight * POINTS_CONFIG.BODYWEIGHT_FACTOR
       : (params.weight || 0);
     const prResult = checkForPR(effectiveWeight, params.reps, activeWorkout.goal, baseline);
+
+    // Apply rune bonuses that trigger during set logging
+    if (prResult.isPR && activeWorkout.selectedRuneId === 'pr_hunter') {
+      // PR Hunter Rune: +2500 points per PR
+      const prHunterBonus = 2500;
+      pointsResult.bonuses.push({
+        type: 'rune_pr_hunter',
+        multiplier: 0,
+        flatBonus: prHunterBonus,
+        description: `PR Hunter: +${prHunterBonus}`,
+      });
+      pointsResult.finalPoints += prHunterBonus;
+    }
+
+    // Apply charm bonuses that trigger during set logging
+    const equippedCharms = activeWorkout.equippedCharmIds;
+    const setNumber = currentExercise.sets.length + 1;
+    const isCompound = exercise.is_compound;
+
+    // Iron Will (Common): +25 flat bonus on PR
+    if (prResult.isPR && equippedCharms.includes('iron_will')) {
+      const bonus = 25;
+      pointsResult.bonuses.push({
+        type: 'charm_pr_bonus',
+        multiplier: 0,
+        flatBonus: bonus,
+        description: `Iron Will: +${bonus}`,
+      });
+      pointsResult.finalPoints += bonus;
+    }
+
+    // PR Hunter Charm (Rare): +100 flat bonus on PR
+    if (prResult.isPR && equippedCharms.includes('pr_hunter')) {
+      const bonus = 100;
+      pointsResult.bonuses.push({
+        type: 'charm_pr_bonus',
+        multiplier: 0,
+        flatBonus: bonus,
+        description: `PR Hunter: +${bonus}`,
+      });
+      pointsResult.finalPoints += bonus;
+    }
+
+    // First Rep (Common): +10% on first set of exercise
+    if (setNumber === 1 && equippedCharms.includes('first_rep')) {
+      const bonus = Math.floor(pointsResult.basePoints * 0.10);
+      pointsResult.bonuses.push({
+        type: 'charm_first_set',
+        multiplier: 0.10,
+        description: `First Rep: +10%`,
+      });
+      pointsResult.finalPoints += bonus;
+    }
+
+    // Compound King (Common): +20% on compound exercises
+    if (isCompound && equippedCharms.includes('compound_king')) {
+      const bonus = Math.floor(pointsResult.basePoints * 0.20);
+      pointsResult.bonuses.push({
+        type: 'charm_compound',
+        multiplier: 0.20,
+        description: `Compound King: +20%`,
+      });
+      pointsResult.finalPoints += bonus;
+    }
+
+    // Volume Master (Rare): +20% on 4th+ set of exercise
+    if (setNumber >= 4 && equippedCharms.includes('volume_master')) {
+      const bonus = Math.floor(pointsResult.basePoints * 0.20);
+      pointsResult.bonuses.push({
+        type: 'charm_volume',
+        multiplier: 0.20,
+        description: `Volume Master: +20%`,
+      });
+      pointsResult.finalPoints += bonus;
+    }
+
+    // Streak Keeper (Rare): +15% when on 3+ day streak
+    if (params.currentStreak >= 3 && equippedCharms.includes('streak_keeper')) {
+      const bonus = Math.floor(pointsResult.basePoints * 0.15);
+      pointsResult.bonuses.push({
+        type: 'charm_streak',
+        multiplier: 0.15,
+        description: `Streak Keeper: +15%`,
+      });
+      pointsResult.finalPoints += bonus;
+    }
 
     const newSet: WorkoutSet = {
       id: uuidv4(),

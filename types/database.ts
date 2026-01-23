@@ -349,6 +349,44 @@ export interface Database {
           muscle_order?: number;
         };
       };
+      user_charms: {
+        Row: {
+          id: string;
+          user_id: string;
+          charm_id: string;
+          equipped: boolean;
+          acquired_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          charm_id: string;
+          equipped?: boolean;
+          acquired_at?: string;
+        };
+        Update: {
+          equipped?: boolean;
+        };
+      };
+      user_runes: {
+        Row: {
+          id: string;
+          user_id: string;
+          rune_id: string;
+          equipped: boolean;
+          acquired_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          rune_id: string;
+          equipped?: boolean;
+          acquired_at?: string;
+        };
+        Update: {
+          equipped?: boolean;
+        };
+      };
     };
     Views: {};
     Functions: {};
@@ -367,3 +405,5 @@ export type ExerciseBaseline = Database['public']['Tables']['exercise_baselines'
 export type MuscleLevel = Database['public']['Tables']['muscle_levels']['Row'];
 export type WeeklyMuscleStats = Database['public']['Tables']['weekly_muscle_stats']['Row'];
 export type ExerciseMuscleMap = Database['public']['Tables']['exercise_muscle_map']['Row'];
+export type UserCharm = Database['public']['Tables']['user_charms']['Row'];
+export type UserRune = Database['public']['Tables']['user_runes']['Row'];

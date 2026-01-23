@@ -287,26 +287,6 @@ export function calculateLevelFromXp(totalXp: number): { level: number; currentX
   return { level: POINTS_CONFIG.LEVELS.MAX_LEVEL, currentXp: remainingXp, xpForNext: 0 };
 }
 
-/**
- * Calculate decay amount based on weeks since last training
- */
-export function calculateDecay(weeksSinceTraining: number, currentXp: number): number {
-  if (weeksSinceTraining < 1) return 0;
-
-  const { DECAY } = POINTS_CONFIG;
-  let decayRate: number;
-
-  if (weeksSinceTraining === 1) {
-    decayRate = DECAY.WEEK_1;
-  } else if (weeksSinceTraining === 2) {
-    decayRate = DECAY.WEEK_2;
-  } else {
-    decayRate = DECAY.WEEK_3_PLUS;
-  }
-
-  return Math.floor(currentXp * decayRate);
-}
-
 // ============================================================================
 // MAIN CALCULATION
 // ============================================================================
@@ -468,31 +448,6 @@ export function updateRollingAverage(
   const newAverage = newHistory.length > 0 ? sum / newHistory.length : 0;
 
   return { newHistory, newAverage };
-}
-
-// ============================================================================
-// STREAK UTILITIES
-// ============================================================================
-
-/**
- * Determine if a workout should extend the streak
- */
-export function shouldExtendStreak(lastWorkoutAt: Date | null): boolean {
-  if (!lastWorkoutAt) return true;
-
-  const now = new Date();
-  const daysSince = Math.floor((now.getTime() - lastWorkoutAt.getTime()) / (1000 * 60 * 60 * 24));
-  return daysSince <= 3;
-}
-
-/**
- * Calculate new streak value
- */
-export function calculateNewStreak(currentStreak: number, lastWorkoutAt: Date | null): number {
-  if (shouldExtendStreak(lastWorkoutAt)) {
-    return currentStreak + 1;
-  }
-  return 1;
 }
 
 // ============================================================================

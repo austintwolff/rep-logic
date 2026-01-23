@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,14 @@ import {
   SafeAreaView,
   ScrollView,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '@/constants/Colors';
+import { useAuthStore } from '@/stores/auth.store';
+import { getUserRunes } from '@/services/workout.service';
+import { RUNE_DEFINITIONS, getRuneById } from '@/lib/runes';
 
 type WorkoutType = 'Push' | 'Pull' | 'Legs' | 'Full Body';
 type GoalMode = 'Strength' | 'Hypertrophy' | 'Endurance';
@@ -79,10 +83,42 @@ const GOAL_MODES: { mode: GoalMode; reps: string; description: string }[] = [
 
 export default function NewWorkoutScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
 
   const [selectedType, setSelectedType] = useState<WorkoutType | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<GoalMode | null>(null);
-  const [showPowerUpModal, setShowPowerUpModal] = useState(false);
+  const [showRuneModal, setShowRuneModal] = useState(false);
+  const [selectedRuneId, setSelectedRuneId] = useState<string | null>(null);
+  const [userRunes, setUserRunes] = useState<{ runeId: string; equipped: boolean }[]>([]);
+  const [isLoadingRunes, setIsLoadingRunes] = useState(true);
+
+  // Fetch user's unlocked runes
+  useEffect(() => {
+    async function loadUserRunes() {
+      if (!user?.id) {
+        setIsLoadingRunes(false);
+        return;
+      }
+
+      try {
+        const runes = await getUserRunes(user.id);
+        setUserRunes(runes);
+        // Auto-select the first equipped rune, or the first rune if none equipped
+        const equippedRune = runes.find(r => r.equipped);
+        if (equippedRune) {
+          setSelectedRuneId(equippedRune.runeId);
+        } else if (runes.length > 0) {
+          setSelectedRuneId(runes[0].runeId);
+        }
+      } catch (error) {
+        console.error('Error loading user runes:', error);
+      } finally {
+        setIsLoadingRunes(false);
+      }
+    }
+
+    loadUserRunes();
+  }, [user?.id]);
 
   const canStart = selectedType !== null && selectedGoal !== null;
 
@@ -90,10 +126,14 @@ export default function NewWorkoutScreen() {
     if (!canStart) return;
 
     const workoutName = selectedType === 'Full Body' ? 'Full Body' : `${selectedType} Day`;
+    const runeParam = selectedRuneId ? `&rune=${encodeURIComponent(selectedRuneId)}` : '';
     router.replace(
-      `/workout/deck?name=${encodeURIComponent(workoutName)}&goal=${encodeURIComponent(selectedGoal!)}`
+      `/workout/deck?name=${encodeURIComponent(workoutName)}&goal=${encodeURIComponent(selectedGoal!)}${runeParam}`
     );
   };
+
+  // Get the selected rune definition for display
+  const selectedRune = selectedRuneId ? getRuneById(selectedRuneId) : null;
 
   const handleClose = () => {
     router.back();
@@ -201,26 +241,45 @@ export default function NewWorkoutScreen() {
           </View>
         </View>
 
-        {/* Power-Ups */}
+        {/* Runes */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Power-Ups
+            Rune
           </Text>
-          <View style={styles.powerUpRow}>
-            {[1, 2, 3].map((slot) => (
-              <TouchableOpacity
-                key={slot}
-                style={styles.powerUpSlot}
-                onPress={() => setShowPowerUpModal(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.powerUpPlus}>+</Text>
-                <Text style={styles.powerUpLabel}>
-                  Slot {slot}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {isLoadingRunes ? (
+            <View style={styles.runeLoadingContainer}>
+              <ActivityIndicator size="small" color={colors.textMuted} />
+            </View>
+          ) : userRunes.length === 0 ? (
+            <View style={styles.runeEmptyContainer}>
+              <Text style={styles.runeEmptyText}>No runes unlocked yet</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.runeSlot,
+                selectedRune && styles.runeSlotSelected,
+              ]}
+              onPress={() => setShowRuneModal(true)}
+              activeOpacity={0.7}
+            >
+              {selectedRune ? (
+                <>
+                  <Text style={styles.runeIcon}>🔮</Text>
+                  <View style={styles.runeInfo}>
+                    <Text style={styles.runeName}>{selectedRune.name}</Text>
+                    <Text style={styles.runeDescription}>{selectedRune.description}</Text>
+                  </View>
+                  <Text style={styles.runeChangeText}>Change</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.runePlus}>+</Text>
+                  <Text style={styles.runeLabel}>Select a Rune</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -236,31 +295,69 @@ export default function NewWorkoutScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Power-Up Modal */}
+      {/* Rune Selection Modal */}
       <Modal
-        visible={showPowerUpModal}
+        visible={showRuneModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowPowerUpModal(false)}
+        onRequestClose={() => setShowRuneModal(false)}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowPowerUpModal(false)}
+          onPress={() => setShowRuneModal(false)}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalIcon}>🚀</Text>
-            <Text style={styles.modalTitle}>
-              Power-Ups Coming Soon
+          <View style={styles.runeModalContent}>
+            <Text style={styles.runeModalTitle}>Select a Rune</Text>
+            <Text style={styles.runeModalSubtitle}>
+              Runes provide bonuses to your entire workout
             </Text>
-            <Text style={styles.modalDescription}>
-              Boost your workouts with special power-ups in a future update!
-            </Text>
+            <ScrollView style={styles.runeList} showsVerticalScrollIndicator={false}>
+              {userRunes.map(({ runeId }) => {
+                const rune = getRuneById(runeId);
+                if (!rune) return null;
+                const isSelected = selectedRuneId === runeId;
+                return (
+                  <TouchableOpacity
+                    key={runeId}
+                    style={[
+                      styles.runeOption,
+                      isSelected && styles.runeOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedRuneId(runeId);
+                      setShowRuneModal(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.runeOptionLeft}>
+                      <Text style={styles.runeOptionIcon}>🔮</Text>
+                      <View style={styles.runeOptionInfo}>
+                        <Text style={[
+                          styles.runeOptionName,
+                          isSelected && styles.runeOptionNameSelected,
+                        ]}>
+                          {rune.name}
+                        </Text>
+                        <Text style={styles.runeOptionDescription}>
+                          {rune.description}
+                        </Text>
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.runeCheckmark}>
+                        <Text style={styles.runeCheckmarkText}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
             <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowPowerUpModal(false)}
+              style={styles.runeModalCloseButton}
+              onPress={() => setShowRuneModal(false)}
             >
-              <Text style={styles.modalButtonText}>Got it</Text>
+              <Text style={styles.runeModalCloseText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -410,30 +507,65 @@ const styles = StyleSheet.create({
   repsTextSelected: {
     color: colors.accent,
   },
-  // Power-Ups
-  powerUpRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  powerUpSlot: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 14,
-    justifyContent: 'center',
+  // Runes
+  runeLoadingContainer: {
+    padding: 24,
     alignItems: 'center',
-    gap: 4,
+  },
+  runeEmptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: colors.bgSecondary,
+    borderRadius: 14,
+  },
+  runeEmptyText: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  runeSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: colors.border,
     backgroundColor: colors.bgSecondary,
+    gap: 12,
   },
-  powerUpPlus: {
+  runeSlotSelected: {
+    borderStyle: 'solid',
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '1A',
+  },
+  runeIcon: {
+    fontSize: 28,
+  },
+  runeInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  runeName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  runeDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  runeChangeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  runePlus: {
     fontSize: 28,
     fontWeight: '300',
     color: colors.textMuted,
   },
-  powerUpLabel: {
-    fontSize: 11,
+  runeLabel: {
+    fontSize: 14,
     fontWeight: '500',
     color: colors.textMuted,
   },
@@ -463,42 +595,93 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: 20,
   },
-  modalContent: {
+  // Rune Modal
+  runeModalContent: {
     width: '100%',
-    padding: 28,
+    maxHeight: '80%',
+    padding: 20,
     borderRadius: 20,
-    alignItems: 'center',
     backgroundColor: colors.bgSecondary,
   },
-  modalIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  modalTitle: {
+  runeModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
     textAlign: 'center',
     color: colors.textPrimary,
+    marginBottom: 4,
   },
-  modalDescription: {
-    fontSize: 15,
+  runeModalSubtitle: {
+    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
+    color: colors.textSecondary,
+    marginBottom: 20,
+  },
+  runeList: {
+    maxHeight: 300,
+  },
+  runeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: colors.bgTertiary,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  runeOptionSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '1A',
+  },
+  runeOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  runeOptionIcon: {
+    fontSize: 24,
+  },
+  runeOptionInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  runeOptionName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  runeOptionNameSelected: {
+    color: colors.accent,
+  },
+  runeOptionDescription: {
+    fontSize: 12,
     color: colors.textSecondary,
   },
-  modalButton: {
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+  runeCheckmark: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
+    backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  modalButtonText: {
+  runeCheckmarkText: {
     color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  runeModalCloseButton: {
+    marginTop: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  runeModalCloseText: {
     fontSize: 16,
     fontWeight: '600',
+    color: colors.textMuted,
   },
 });

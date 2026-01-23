@@ -17,8 +17,11 @@ import { getBestSetFromRecentWorkouts, BestSetResult } from '@/services/workout.
 import SetLogger from '@/components/workout/SetLogger';
 import RestTimer from '@/components/workout/RestTimer';
 import AnimatedSetRow from '@/components/workout/AnimatedSetRow';
-import { PointsResult } from '@/lib/points-engine/types';
+import { PointsResult, POINTS_CONFIG } from '@/lib/points-engine/types';
 import { colors } from '@/constants/Colors';
+
+// Track which muscles have shown the volume reduction popup this session
+const volumeReductionShownForMuscles = new Set<string>();
 
 // Custom SVG Icons
 function TrashIcon({ size = 20 }: { size?: number }) {
@@ -136,6 +139,7 @@ export default function ExerciseDetailScreen() {
   const handleLogSet = (weight: number | null, reps: number) => {
     const isBodyweight = currentExercise?.exercise.exercise_type === 'bodyweight';
     const newSetIndex = currentExercise?.sets.length || 0;
+    const muscleGroup = currentExercise?.exercise.muscle_group || '';
 
     const result = logSet({
       weight,
@@ -144,8 +148,26 @@ export default function ExerciseDetailScreen() {
       currentStreak: userStats?.current_workout_streak || 0,
     });
 
-    // Trigger inline animation
+    // Check for volume reduction and show explanation popup
     if (result) {
+      const volumeScalingBonus = result.bonuses.find(b => b.type === 'volume_scaling');
+      if (volumeScalingBonus && !volumeReductionShownForMuscles.has(muscleGroup)) {
+        volumeReductionShownForMuscles.add(muscleGroup);
+
+        const reductionPercent = Math.round((1 - volumeScalingBonus.multiplier) * 100);
+        const { FULL_VALUE_SETS } = POINTS_CONFIG.VOLUME_SCALING;
+
+        // Show info popup after a short delay so it doesn't interrupt the animation
+        setTimeout(() => {
+          showAlert(
+            'Volume Scaling',
+            `You've done ${FULL_VALUE_SETS}+ sets for ${muscleGroup} this workout.\n\nTo encourage quality over quantity, points are now reduced by ${reductionPercent}%. This helps prevent junk volume and rewards focused training.`,
+            [{ text: 'Got it', style: 'default' }]
+          );
+        }, 500);
+      }
+
+      // Trigger inline animation
       setAnimatingSetInfo({ weight, reps, isBodyweight });
       setAnimatingPointsResult(result);
       setAnimatingSetIndex(newSetIndex);

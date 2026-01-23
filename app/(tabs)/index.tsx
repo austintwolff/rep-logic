@@ -245,13 +245,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 4,
     color: colors.textSecondary,
   },
