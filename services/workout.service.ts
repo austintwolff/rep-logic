@@ -804,44 +804,27 @@ export async function setRuneEquipped(userId: string, runeId: string, equipped: 
 
 /**
  * Get all charms owned by a user
+ * TODO: Enable when user_charms table is created in Supabase
  */
-export async function getUserCharms(userId: string): Promise<{ charmId: string; equipped: boolean; acquiredAt: string }[]> {
-  const { data, error } = await (supabase
-    .from('user_charms') as any)
-    .select('charm_id, equipped, acquired_at')
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error fetching user charms');
-    return [];
-  }
-
-  return data?.map((row: { charm_id: string; equipped: boolean; acquired_at: string }) => ({
-    charmId: row.charm_id,
-    equipped: row.equipped,
-    acquiredAt: row.acquired_at,
-  })) || [];
+export async function getUserCharms(_userId: string): Promise<{ charmId: string; equipped: boolean; acquiredAt: string }[]> {
+  // For now, return starter charms for testing
+  return [
+    { charmId: 'iron_will', equipped: true, acquiredAt: new Date().toISOString() },
+    { charmId: 'first_rep', equipped: true, acquiredAt: new Date().toISOString() },
+    { charmId: 'compound_king', equipped: false, acquiredAt: new Date().toISOString() },
+  ];
 }
 
 /**
  * Get all runes owned by a user
+ * TODO: Enable when user_runes table is created in Supabase
  */
-export async function getUserRunes(userId: string): Promise<{ runeId: string; equipped: boolean; acquiredAt: string }[]> {
-  const { data, error } = await (supabase
-    .from('user_runes') as any)
-    .select('rune_id, equipped, acquired_at')
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error fetching user runes');
-    return [];
-  }
-
-  return data?.map((row: { rune_id: string; equipped: boolean; acquired_at: string }) => ({
-    runeId: row.rune_id,
-    equipped: row.equipped,
-    acquiredAt: row.acquired_at,
-  })) || [];
+export async function getUserRunes(_userId: string): Promise<{ runeId: string; equipped: boolean; acquiredAt: string }[]> {
+  // For now, return starter runes for testing
+  return [
+    { runeId: 'endurance', equipped: true, acquiredAt: new Date().toISOString() },
+    { runeId: 'pr_hunter', equipped: false, acquiredAt: new Date().toISOString() },
+  ];
 }
 
 // ============================================================================
